@@ -242,7 +242,9 @@ export default function ConsultationPage() {
   async function startRecording() {
     setError("");
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { noiseSuppression: true, echoCancellation: true, autoGainControl: true },
+      });
       streamRef.current = stream;
       chunksRef.current = [];
       const mimeType = pickMimeType();

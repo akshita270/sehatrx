@@ -189,7 +189,15 @@ SYSTEM_PROMPT = (
     "If this happens, put a short, clear phrase naming the substance and reaction if given (e.g. "
     "'Penicillin', 'Sulfa drugs (rash)') into newAllergyMentioned. Leave newAllergyMentioned as '' "
     "(empty string) if no allergy or adverse reaction was mentioned anywhere in the transcript - never "
-    "invent one."
+    "invent one. "
+    "This prescription is read directly by the patient, not another clinician, so never write raw "
+    "clinical shorthand into freq, timing, timingWhen, dietAdvice, or advice - always expand it into "
+    "plain everyday language a patient can understand, even if that's exactly how the doctor said it. "
+    "Common examples: 'BID' or 'BD' -> 'Twice a day', 'TID' or 'TDS' -> 'Three times a day', 'QID' -> "
+    "'Four times a day', 'OD' -> 'Once a day', 'HS' -> 'At bedtime', 'PRN' or 'SOS' -> 'As needed', "
+    "'STAT' -> 'Right away', 'AC' -> 'Before meals', 'PC' -> 'After meals', 'q4h' -> 'Every 4 hours'. "
+    "This applies whether the doctor said the abbreviation out loud or wrote it - the extracted field "
+    "must always be the plain-language version, never the shorthand itself."
 )
 
 STRICT_RETRY_SUFFIX = (
