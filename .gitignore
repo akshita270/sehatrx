@@ -1,0 +1,27 @@
+# Secrets
+.env
+.env.local
+*.env
+!*.env.example
+
+# Backend (Python)
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.pyc
+backend/.pytest_cache/
+backend/htmlcov/
+backend/.coverage
+
+# Frontend (Node)
+frontend/node_modules/
+frontend/dist/
+frontend/*.local
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
+
+# Claude Code local settings
+.claude/settings.local.json
