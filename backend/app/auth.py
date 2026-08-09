@@ -1,3 +1,4 @@
+import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Literal
 
@@ -23,6 +24,15 @@ def hash_password(password: str) -> str:
 
 def verify_password(password: str, password_hash: str) -> bool:
     return pwd_context.verify(password, password_hash)
+
+
+def generate_claim_code() -> str:
+    """6-digit code a doctor/patient hands to the person who should claim an account.
+
+    Prevents anyone who merely knows or guesses a patient's/caregiver's email address
+    from self-registering into a pre-created record and seeing their medical history.
+    """
+    return f"{secrets.randbelow(1_000_000):06d}"
 
 
 def create_access_token(subject: str, role: Role) -> str:

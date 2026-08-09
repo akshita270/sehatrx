@@ -45,6 +45,7 @@ class Patient(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     email: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True, index=True)
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    claim_code: Mapped[str | None] = mapped_column(String(10), nullable=True)
     phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
     age: Mapped[int | None] = mapped_column(Integer, nullable=True)
     gender: Mapped[str | None] = mapped_column(String(20), nullable=True)
@@ -64,6 +65,7 @@ class Caregiver(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    claim_code: Mapped[str | None] = mapped_column(String(10), nullable=True)
     phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

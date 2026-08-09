@@ -102,6 +102,14 @@ def test_patient_register_claims_walkin_added_with_email(client, register_doctor
     )
     assert walkin.status_code == 201
     walkin_id = walkin.json()["id"]
+    claim_code = walkin.json()["claim_code"]
+    assert claim_code
+
+    no_code = client.post(
+        "/auth/register/patient",
+        json={"name": "Rahul Sharma", "email": "rahul@example.com", "password": "newpassword123"},
+    )
+    assert no_code.status_code == 403
 
     claim = client.post(
         "/auth/register/patient",
@@ -109,6 +117,7 @@ def test_patient_register_claims_walkin_added_with_email(client, register_doctor
             "name": "Rahul Sharma",
             "email": "rahul@example.com",
             "password": "newpassword123",
+            "claim_code": claim_code,
             "phone": "+91 90000 44444",
             "age": 45,
             "gender": "Male",

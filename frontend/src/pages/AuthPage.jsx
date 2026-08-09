@@ -17,8 +17,8 @@ const FEATURES = [
 const HOME_BY_ROLE = { doctor: "/dashboard", patient: "/portal", caregiver: "/family" };
 
 const emptyDoctorForm = { name: "", email: "", password: "", specialization: "", clinic: "", reg_no: "", phone: "" };
-const emptyPatientForm = { name: "", email: "", password: "", phone: "", age: "" };
-const emptyCaregiverForm = { name: "", email: "", password: "", phone: "" };
+const emptyPatientForm = { name: "", email: "", password: "", phone: "", age: "", claim_code: "" };
+const emptyCaregiverForm = { name: "", email: "", password: "", phone: "", claim_code: "" };
 const emptyLoginForm = { email: "", password: "" };
 
 export default function AuthPage() {
@@ -256,6 +256,12 @@ export default function AuthPage() {
               <Field label="Password" type="password" required value={patientForm.password} onChange={(e) => setPatientForm({ ...patientForm, password: e.target.value })} />
               <Field label="Phone" value={patientForm.phone} onChange={(e) => setPatientForm({ ...patientForm, phone: e.target.value })} />
               <Field label="Age" type="number" value={patientForm.age} onChange={(e) => setPatientForm({ ...patientForm, age: e.target.value })} />
+              <Field
+                label="Claim Code (given by your doctor at your visit)"
+                required
+                value={patientForm.claim_code}
+                onChange={(e) => setPatientForm({ ...patientForm, claim_code: e.target.value })}
+              />
               <Button type="submit" disabled={loading} fullWidth style={{ marginTop: 8 }}>
                 {loading ? "Creating account…" : "Create Patient Account"}
               </Button>
@@ -272,6 +278,12 @@ export default function AuthPage() {
               />
               <Field label="Password" type="password" required value={caregiverForm.password} onChange={(e) => setCaregiverForm({ ...caregiverForm, password: e.target.value })} />
               <Field label="Phone" value={caregiverForm.phone} onChange={(e) => setCaregiverForm({ ...caregiverForm, phone: e.target.value })} />
+              <Field
+                label="Claim Code (given by the patient in their Family Access section)"
+                required
+                value={caregiverForm.claim_code}
+                onChange={(e) => setCaregiverForm({ ...caregiverForm, claim_code: e.target.value })}
+              />
               <Button type="submit" disabled={loading} fullWidth style={{ marginTop: 8 }}>
                 {loading ? "Creating account…" : "Create Family Account"}
               </Button>

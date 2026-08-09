@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AlertTriangle, Search, User, UserPlus, X } from "lucide-react";
+import { AlertTriangle, Copy, KeyRound, Search, User, UserPlus, X } from "lucide-react";
 import { colors, fonts, radius, shadow } from "../theme";
 import { api } from "../api/client";
 import Button from "./Button";
@@ -12,6 +12,7 @@ export default function PatientPickerModal({ onClose, onStart }) {
   const [loading, setLoading] = useState(false);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
+  const [claimCodeToShow, setClaimCodeToShow] = useState(null);
 
   const [form, setForm] = useState({ name: "", age: "", gender: "", phone: "", email: "", known_allergies: "" });
 
@@ -53,7 +54,24 @@ export default function PatientPickerModal({ onClose, onStart }) {
         email: form.email || null,
         known_allergies: form.known_allergies || null,
       });
+      if (patient.claim_code) {
+        setClaimCodeToShow(patient);
+        setStarting(false);
+        return;
+      }
       const consultation = await api.post("/consultations", { patient_id: patient.id });
+      onStart(consultation);
+    } catch (e) {
+      setError(e.message);
+      setStarting(false);
+    }
+  }
+
+  async function handleContinueAfterClaimCode() {
+    setStarting(true);
+    setError("");
+    try {
+      const consultation = await api.post("/consultations", { patient_id: claimCodeToShow.id });
       onStart(consultation);
     } catch (e) {
       setError(e.message);
@@ -108,14 +126,16 @@ export default function PatientPickerModal({ onClose, onStart }) {
           </button>
         </div>
 
-        <div style={{ display: "flex", gap: 8, padding: "16px 24px 0" }}>
-          <TabButton active={tab === "existing"} onClick={() => setTab("existing")} icon={User}>
-            Existing Patient
-          </TabButton>
-          <TabButton active={tab === "new"} onClick={() => setTab("new")} icon={UserPlus}>
-            Add New Patient
-          </TabButton>
-        </div>
+        {!claimCodeToShow && (
+          <div style={{ display: "flex", gap: 8, padding: "16px 24px 0" }}>
+            <TabButton active={tab === "existing"} onClick={() => setTab("existing")} icon={User}>
+              Existing Patient
+            </TabButton>
+            <TabButton active={tab === "new"} onClick={() => setTab("new")} icon={UserPlus}>
+              Add New Patient
+            </TabButton>
+          </div>
+        )}
 
         <div style={{ padding: 24, overflowY: "auto" }}>
           {error && (
@@ -133,7 +153,50 @@ export default function PatientPickerModal({ onClose, onStart }) {
             </div>
           )}
 
-          {tab === "existing" ? (
+          {claimCodeToShow ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={{ fontSize: 13.5, color: colors.text }}>
+                <strong>{claimCodeToShow.name}</strong> has been added. To set up their online portal, they'll need
+                this one-time code — write it down or read it out to them now (it won't be shown again after you
+                continue):
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 10,
+                  background: colors.primarySoft,
+                  border: `1.5px solid ${colors.primary}`,
+                  borderRadius: radius.sm,
+                  padding: "18px 16px",
+                }}
+              >
+                <KeyRound size={20} color={colors.primaryDark} />
+                <span
+                  style={{
+                    fontFamily: fonts.display,
+                    fontSize: 28,
+                    fontWeight: 700,
+                    letterSpacing: 4,
+                    color: colors.primaryDark,
+                  }}
+                >
+                  {claimCodeToShow.claim_code}
+                </span>
+                <button
+                  onClick={() => navigator.clipboard?.writeText(claimCodeToShow.claim_code)}
+                  title="Copy code"
+                  style={{ background: "none", border: "none", cursor: "pointer", color: colors.primaryDark, padding: 4 }}
+                >
+                  <Copy size={16} />
+                </button>
+              </div>
+              <Button onClick={handleContinueAfterClaimCode} disabled={starting} fullWidth>
+                {starting ? "Starting…" : "Continue to Consultation"}
+              </Button>
+            </div>
+          ) : tab === "existing" ? (
             <>
               <div style={{ position: "relative", marginBottom: 14 }}>
                 <Search

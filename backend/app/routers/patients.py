@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_doctor
+from app.auth import generate_claim_code, get_current_doctor
 from app.database import get_db
 from app.models import Consultation, ConsultationStatus, Doctor, Patient
 from app.schemas import (
@@ -45,6 +45,7 @@ def create_patient(
         phone=payload.phone,
         email=payload.email,
         known_allergies=payload.known_allergies,
+        claim_code=generate_claim_code() if payload.email else None,
     )
     db.add(patient)
     db.commit()

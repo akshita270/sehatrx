@@ -309,6 +309,11 @@ export default function PatientPortal() {
                       {c.name} {c.relationship_label && <span style={{ color: colors.textSoft, fontWeight: 500 }}>· {c.relationship_label}</span>}
                     </div>
                     <div style={{ fontSize: 12, color: colors.textSoft, marginTop: 1 }}>{c.email}</div>
+                    {c.claim_code && (
+                      <div style={{ fontSize: 12, color: colors.primaryDark, marginTop: 4, fontWeight: 600 }}>
+                        Share this code so they can sign up: <span style={{ letterSpacing: 1.5 }}>{c.claim_code}</span>
+                      </div>
+                    )}
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <Badge tone={c.has_registered ? "sent" : "pending"}>{c.has_registered ? t("active") : t("pending")}</Badge>

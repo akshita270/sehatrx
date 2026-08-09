@@ -88,8 +88,15 @@ def register_patient(payload: PatientRegisterRequest, db: Session = Depends(get_
     if existing:
         if existing.password_hash:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
-        # Walk-in patient added by a doctor is now self-registering.
+        # Walk-in patient added by a doctor is now self-registering - the claim code
+        # proves this is actually them, not just someone who knows/guessed their email.
+        if not payload.claim_code or payload.claim_code != existing.claim_code:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Incorrect claim code. Ask your doctor for the code they gave you at your visit.",
+            )
         existing.password_hash = hash_password(payload.password)
+        existing.claim_code = None
         existing.phone = payload.phone or existing.phone
         existing.age = payload.age or existing.age
         existing.gender = payload.gender or existing.gender
@@ -127,9 +134,15 @@ def register_caregiver(payload: CaregiverRegisterRequest, db: Session = Depends(
         )
     if existing.password_hash:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
+    if not payload.claim_code or payload.claim_code != existing.claim_code:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Incorrect claim code. Ask the patient for the code shown in their Family Access section.",
+        )
 
     existing.name = payload.name
     existing.password_hash = hash_password(payload.password)
+    existing.claim_code = None
     existing.phone = payload.phone or existing.phone
     db.commit()
     db.refresh(existing)

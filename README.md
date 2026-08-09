@@ -155,6 +155,18 @@ app with realistic Hindi/Hinglish test conversations, not from a spec:
   drafting and surface a one-click "save to profile" prompt at the moment it's
   cheapest to act on — while the doctor is already looking at the draft.
 
+- **Knowing a patient's email was enough to steal their account.** Walk-in patients
+  (and invited family caregivers) start as an unclaimed record — a name and email
+  with no password — until they self-register with matching credentials. The claim
+  step had no identity check at all: anyone who submitted that email got to set the
+  password and see the patient's full history, allergies included. Fixed with a
+  single-use claim code generated when the record is created, which the doctor (or
+  patient, for a caregiver invite) hands over in person or through their own channel
+  — registering now requires the email *and* that code, so knowing or guessing an
+  email alone is no longer enough. Verified with a live attack simulation: a fake
+  "attacker" registration using the correct email but a wrong code was rejected with
+  a 403, while the code holder succeeded.
+
 ## Getting Started
 
 ### Prerequisites
@@ -269,9 +281,13 @@ not just more prompt engineering:
 - **Drug–drug interaction checks** (e.g. warfarin + amoxicillin) and **dose-range
   validation** against a curated reference table, not an LLM's own unverified opinion
   on drug safety
-- **Abbreviation expansion** ("PRN", "BID") into plain patient-facing language
 - **Live deployment** — currently local-only; backend on Render/Railway, frontend on
   Vercel, is the natural next step
 - Broader regional-language support beyond Hindi (Whisper and GPT-4o already handle
   most Indian languages; the app-side plumbing would need generalizing from a
   hardcoded `en`/`hi` pair to a per-patient language preference)
+- No password-reset flow for any role yet — a locked-out doctor/patient/caregiver
+  currently has no self-service recovery path
+- Rate limiting is per-IP rather than per-account (shared clinic networks share a
+  bucket; switching networks resets it) — should key off the authenticated user
+- Deleting an in-progress consultation is a hard delete with no audit trail

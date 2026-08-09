@@ -25,6 +25,7 @@ class PatientRegisterRequest(BaseModel):
     name: str
     email: EmailStr
     password: str = Field(min_length=6)
+    claim_code: str | None = None
     phone: str | None = None
     age: int | None = None
     gender: str | None = None
@@ -35,6 +36,7 @@ class CaregiverRegisterRequest(BaseModel):
     name: str
     email: EmailStr
     password: str = Field(min_length=6)
+    claim_code: str | None = None
     phone: str | None = None
 
 
@@ -101,6 +103,7 @@ class PatientResponse(BaseModel):
     age: int | None = None
     gender: str | None = None
     known_allergies: str | None = None
+    claim_code: str | None = None
 
 
 class PatientHistoryMedicine(BaseModel):
@@ -135,6 +138,7 @@ class CaregiverResponse(BaseModel):
     phone: str | None = None
     relationship_label: str | None = None
     has_registered: bool = False
+    claim_code: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
