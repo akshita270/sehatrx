@@ -128,6 +128,38 @@ def test_unsent_consultation_can_be_deleted(client, register_doctor):
     assert all(c["id"] != consultation_id for c in after.json())
 
 
+def test_delete_consultation_writes_audit_log(client, db_session, register_doctor):
+    from app.models import ConsultationDeletionLog
+
+    doctor = register_doctor(email="audit-log@example.com")
+    headers = auth_header(doctor)
+
+    patient = client.post("/patients", json={"name": "Audited Patient"}, headers=headers)
+    consultation_id = client.post(
+        "/consultations", json={"patient_id": patient.json()["id"]}, headers=headers
+    ).json()["id"]
+    client.patch(
+        f"/consultations/{consultation_id}/transcript",
+        json={"transcript_text": "Some notes before the doctor changed their mind."},
+        headers=headers,
+    )
+
+    delete = client.delete(f"/consultations/{consultation_id}", headers=headers)
+    assert delete.status_code == 204
+
+    log = (
+        db_session.query(ConsultationDeletionLog)
+        .filter(ConsultationDeletionLog.consultation_id == consultation_id)
+        .first()
+    )
+    assert log is not None
+    assert log.doctor_id == doctor["user"]["id"]
+    assert log.patient_name == "Audited Patient"
+    assert log.had_transcript is True
+    assert log.had_draft_prescription is False
+    assert log.status_at_deletion == "recording"
+
+
 def test_transcribe_rejects_oversized_audio(client, register_doctor):
     doctor = register_doctor(email="oversized-audio@example.com")
     headers = auth_header(doctor)

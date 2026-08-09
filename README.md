@@ -175,6 +175,17 @@ app with realistic Hindi/Hinglish test conversations, not from a spec:
   had already gone to the patient, which defeats the point of locking anything.
   Fixed with the same check, copied from the endpoints that already had it.
 
+- **Deleting a consultation left zero trace it ever happened.** Never-sent
+  consultations can be deleted (sent ones can't, for patient-safety reasons), but the
+  delete was a plain hard delete - a doctor could record something, decide they
+  didn't like what was in the transcript, delete it, and there'd be no record the
+  consultation had ever existed. Added an append-only `consultation_deletion_logs`
+  table - written *before* the delete, in the same transaction - capturing who
+  deleted what, when, and a summary of what was lost (had a transcript? had a draft
+  prescription? what status was it in?). It doesn't restore anything, and there's no
+  admin UI to browse it yet since the app has no admin role - but the action itself
+  can no longer disappear without a trace.
+
 ## Getting Started
 
 ### Prerequisites
@@ -298,4 +309,3 @@ not just more prompt engineering:
   currently has no self-service recovery path
 - Rate limiting is per-IP rather than per-account (shared clinic networks share a
   bucket; switching networks resets it) — should key off the authenticated user
-- Deleting an in-progress consultation is a hard delete with no audit trail

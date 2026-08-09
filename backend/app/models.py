@@ -192,3 +192,27 @@ class PrescriptionAudio(Base):
     lang: Mapped[str] = mapped_column(String(5), nullable=False)
     audio_data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ConsultationDeletionLog(Base):
+    """Immutable record of who deleted a never-sent consultation, and when.
+
+    Deleting a consultation is a hard delete (only allowed before it's sent, since
+    sent ones are permanent for patient-safety reasons) - this table exists so that
+    action itself still leaves a trace, rather than being able to erase a recorded
+    consultation with zero record it ever happened.
+    """
+
+    __tablename__ = "consultation_deletion_logs"
+
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
+    consultation_id: Mapped[str] = mapped_column(UUID(as_uuid=False), nullable=False)
+    doctor_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("doctors.id"), nullable=False)
+    patient_id: Mapped[str] = mapped_column(UUID(as_uuid=False), nullable=False)
+    patient_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    status_at_deletion: Mapped[str] = mapped_column(String(50), nullable=False)
+    had_transcript: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    had_draft_prescription: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    deleted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    doctor: Mapped["Doctor"] = relationship()

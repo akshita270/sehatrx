@@ -4,7 +4,16 @@ from sqlalchemy.orm import Session
 from app.auth import get_current_doctor
 from app.database import get_db
 from app.limiter import limiter
-from app.models import Consultation, ConsultationStatus, Doctor, Medicine, Patient, Prescription, Test
+from app.models import (
+    Consultation,
+    ConsultationDeletionLog,
+    ConsultationStatus,
+    Doctor,
+    Medicine,
+    Patient,
+    Prescription,
+    Test,
+)
 from app.schemas import (
     ConsultationCreateRequest,
     ConsultationResponse,
@@ -97,6 +106,18 @@ def delete_consultation(
             status_code=status.HTTP_409_CONFLICT,
             detail="A prescription that's already been sent to the patient can't be deleted.",
         )
+
+    db.add(
+        ConsultationDeletionLog(
+            consultation_id=consultation.id,
+            doctor_id=doctor.id,
+            patient_id=consultation.patient_id,
+            patient_name=consultation.patient.name,
+            status_at_deletion=consultation.status.value,
+            had_transcript=bool(consultation.transcript_text),
+            had_draft_prescription=consultation.prescription is not None,
+        )
+    )
     db.delete(consultation)
     db.commit()
 
