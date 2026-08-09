@@ -5,6 +5,8 @@
 
 **Consultations to prescriptions, without the paperwork.**
 
+**[Live demo →](https://sehatrx.vercel.app)** (seeded demo accounts — see [Getting Started](#getting-started))
+
 SehatRx is an AI-assisted consultation and prescription workflow built for Indian
 clinics. A doctor records a consultation in Hindi, English, or Hinglish; the app
 transcribes it with Whisper, drafts a structured prescription with GPT-4o, and lets
@@ -313,8 +315,6 @@ not just more prompt engineering:
 - **Drug–drug interaction checks** (e.g. warfarin + amoxicillin) and **dose-range
   validation** against a curated reference table, not an LLM's own unverified opinion
   on drug safety
-- **Live deployment** — currently local-only; backend on Render/Railway, frontend on
-  Vercel, is the natural next step
 - Broader regional-language support beyond Hindi (Whisper and GPT-4o already handle
   most Indian languages; the app-side plumbing would need generalizing from a
   hardcoded `en`/`hi` pair to a per-patient language preference)
