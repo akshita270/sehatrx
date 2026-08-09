@@ -26,6 +26,7 @@ import Button from "../components/Button";
 import Field from "../components/Field";
 import Waveform from "../components/Waveform";
 import LanguageToggle from "../components/LanguageToggle";
+import PatientHistoryPanel from "../components/PatientHistoryPanel";
 
 const STEPS = ["Record", "Transcript", "Prescription"];
 
@@ -430,6 +431,8 @@ export default function ConsultationPage() {
             </div>
           </div>
         )}
+
+        {stage !== "sent" && <PatientHistoryPanel patientId={patientId} />}
 
         {stage !== "sent" && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 32 }}>

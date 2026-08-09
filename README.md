@@ -55,6 +55,9 @@ out loud if needed, and impossible to quietly alter after the fact.
   conversation — even off-topic — and prompts the doctor to save new ones to the
   patient's profile instead of letting them get lost in a one-off transcript
 - Known-allergy warning banner shown before prescribing, every time
+- Collapsible "Past Visits" panel while drafting — every prior sent prescription for
+  this patient, across every doctor who's seen them, so a second visit isn't a blank
+  slate: what was tried before, and whether it's worth stepping up treatment
 - Dashboard with search/filter, approval-pending items surfaced first, delete for
   abandoned (never-sent) consultations, print/PDF export
 - Recording length (10 min) and audio size (20 MB) caps to keep Whisper costs bounded;

@@ -264,3 +264,48 @@ def test_patient_can_download_prescription_pdf(client, monkeypatch, register_doc
     pdf_hi = client.get(f"/patients/me/prescriptions/{prescription_id}/pdf?lang=hi", headers=patient_headers)
     assert pdf_hi.status_code == 200, pdf_hi.text
     assert pdf_hi.content[:4] == b"%PDF"
+
+
+def test_patient_history_shows_past_visits_across_doctors(client, monkeypatch, register_doctor):
+    monkeypatch.setattr("app.routers.consultations.draft_prescription", _fake_draft_prescription)
+    monkeypatch.setattr("app.routers.consultations.translate_to_hindi", _fake_translate_to_hindi)
+
+    doctor_a = register_doctor(email="history-doc-a@example.com")
+    headers_a = auth_header(doctor_a)
+    patient = client.post("/patients", json={"name": "History Patient", "age": 45}, headers=headers_a)
+    patient_id = patient.json()["id"]
+
+    consultation_id = client.post(
+        "/consultations", json={"patient_id": patient_id}, headers=headers_a
+    ).json()["id"]
+    client.patch(
+        f"/consultations/{consultation_id}/transcript",
+        json={"transcript_text": "First visit."},
+        headers=headers_a,
+    )
+    client.post(f"/consultations/{consultation_id}/draft-rx", json={}, headers=headers_a)
+    client.post(f"/consultations/{consultation_id}/approve", json={}, headers=headers_a)
+
+    doctor_b = register_doctor(email="history-doc-b@example.com")
+    headers_b = auth_header(doctor_b)
+
+    history = client.get(f"/patients/{patient_id}/history", headers=headers_b)
+    assert history.status_code == 200, history.text
+    items = history.json()
+    assert len(items) == 1
+    assert items[0]["doctor_name"] == "Dr. Test Doctor"
+    assert items[0]["chief_complaint"] == "Fever for three days"
+    assert items[0]["medicines"][0]["name"] == "Paracetamol"
+
+
+def test_patient_history_excludes_unsent_consultations(client, register_doctor):
+    doctor = register_doctor(email="history-unsent@example.com")
+    headers = auth_header(doctor)
+    patient = client.post("/patients", json={"name": "Unsent History Patient"}, headers=headers)
+    patient_id = patient.json()["id"]
+
+    client.post("/consultations", json={"patient_id": patient_id}, headers=headers)
+
+    history = client.get(f"/patients/{patient_id}/history", headers=headers)
+    assert history.status_code == 200, history.text
+    assert history.json() == []

@@ -103,6 +103,21 @@ class PatientResponse(BaseModel):
     known_allergies: str | None = None
 
 
+class PatientHistoryMedicine(BaseModel):
+    name: str
+    dose: str
+    duration: str
+
+
+class PatientHistoryItem(BaseModel):
+    consultation_id: str
+    date: datetime
+    doctor_name: str
+    chief_complaint: str | None = None
+    diagnosis: str | None = None
+    medicines: list[PatientHistoryMedicine] = []
+
+
 # ---------- Caregivers ----------
 
 
