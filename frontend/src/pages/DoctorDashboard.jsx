@@ -41,6 +41,8 @@ export default function DoctorDashboard() {
   const [showPicker, setShowPicker] = useState(false);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [deletingId, setDeletingId] = useState(null);
   const [confirmingId, setConfirmingId] = useState(null);
   const [showEditProfile, setShowEditProfile] = useState(false);
@@ -71,10 +73,15 @@ export default function DoctorDashboard() {
         const matchesStatus =
           statusFilter === "all" ||
           (statusFilter === "in_progress" ? IN_PROGRESS_STATUSES.includes(c.status) : c.status === statusFilter);
-        return matchesQuery && matchesStatus;
+        const consultationDate = c.created_at.slice(0, 10);
+        const matchesFrom = !dateFrom || consultationDate >= dateFrom;
+        const matchesTo = !dateTo || consultationDate <= dateTo;
+        return matchesQuery && matchesStatus && matchesFrom && matchesTo;
       })
       .sort((a, b) => (a.status === "drafted" ? -1 : 0) - (b.status === "drafted" ? -1 : 0));
-  }, [consultations, query, statusFilter]);
+  }, [consultations, query, statusFilter, dateFrom, dateTo]);
+
+  const hasDateFilter = dateFrom || dateTo;
 
   function handleStartConsultation(consultation) {
     setShowPicker(false);
@@ -254,6 +261,57 @@ export default function DoctorDashboard() {
                 </option>
               ))}
             </select>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              max={dateTo || undefined}
+              title="From date"
+              style={{
+                padding: "7px 10px",
+                fontSize: 13,
+                border: `1.5px solid ${colors.border}`,
+                borderRadius: radius.pill,
+                outline: "none",
+                background: colors.surface,
+                color: dateFrom ? colors.text : colors.textFaint,
+              }}
+            />
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              min={dateFrom || undefined}
+              title="To date"
+              style={{
+                padding: "7px 10px",
+                fontSize: 13,
+                border: `1.5px solid ${colors.border}`,
+                borderRadius: radius.pill,
+                outline: "none",
+                background: colors.surface,
+                color: dateTo ? colors.text : colors.textFaint,
+              }}
+            />
+            {hasDateFilter && (
+              <button
+                onClick={() => {
+                  setDateFrom("");
+                  setDateTo("");
+                }}
+                title="Clear date filter"
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: colors.textSoft,
+                  padding: "4px 6px",
+                  fontSize: 12.5,
+                }}
+              >
+                <X size={14} />
+              </button>
+            )}
           </div>
         </div>
 
