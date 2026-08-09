@@ -62,6 +62,8 @@ out loud if needed, and impossible to quietly alter after the fact.
 
 **For patients**
 - Portal showing every prescription ever sent, in English or Hindi
+- One-click PDF download, server-rendered (WeasyPrint) so Hindi text shapes correctly
+  — not a browser print dialog
 - "Listen to this prescription" — a synthesized, cached audio summary for patients
   who can't or don't want to read
 - Larger-text mode for older or low-vision patients
@@ -158,6 +160,8 @@ app with realistic Hindi/Hinglish test conversations, not from a spec:
 - Node.js 18+
 - Docker (for local Postgres)
 - An OpenAI API key with access to Whisper, GPT-4o, and TTS
+- Pango (system library, for PDF generation): `brew install pango` on macOS, or
+  `apt-get install libpango-1.0-0 libpangocairo-1.0-0` on Debian/Ubuntu
 
 ### 1. Start Postgres
 

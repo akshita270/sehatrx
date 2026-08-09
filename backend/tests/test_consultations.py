@@ -224,3 +224,43 @@ def test_update_patient_allergies(client, register_doctor):
     )
     assert update.status_code == 200, update.text
     assert update.json()["known_allergies"] == "Penicillin, Sulfa drugs"
+
+
+def test_patient_can_download_prescription_pdf(client, monkeypatch, register_doctor):
+    doctor = register_doctor(email="pdf-download@example.com")
+    monkeypatch.setattr("app.routers.consultations.draft_prescription", _fake_draft_prescription)
+    monkeypatch.setattr("app.routers.consultations.translate_to_hindi", _fake_translate_to_hindi)
+    headers = auth_header(doctor)
+
+    patient = client.post(
+        "/patients", json={"name": "PDF Patient", "age": 30, "email": "pdf-patient@example.com"}, headers=headers
+    )
+    consultation_id = client.post(
+        "/consultations", json={"patient_id": patient.json()["id"]}, headers=headers
+    ).json()["id"]
+    client.patch(
+        f"/consultations/{consultation_id}/transcript",
+        json={"transcript_text": "Routine consultation."},
+        headers=headers,
+    )
+    client.post(f"/consultations/{consultation_id}/draft-rx", json={}, headers=headers)
+    client.post(f"/consultations/{consultation_id}/approve", json={}, headers=headers)
+
+    patient_login = client.post(
+        "/auth/register/patient",
+        json={"name": "PDF Patient", "email": "pdf-patient@example.com", "password": "password123"},
+    )
+    assert patient_login.status_code == 201, patient_login.text
+    patient_headers = auth_header(patient_login.json())
+
+    prescriptions = client.get("/patients/me/prescriptions", headers=patient_headers)
+    prescription_id = prescriptions.json()[0]["id"]
+
+    pdf_en = client.get(f"/patients/me/prescriptions/{prescription_id}/pdf", headers=patient_headers)
+    assert pdf_en.status_code == 200, pdf_en.text
+    assert pdf_en.headers["content-type"] == "application/pdf"
+    assert pdf_en.content[:4] == b"%PDF"
+
+    pdf_hi = client.get(f"/patients/me/prescriptions/{prescription_id}/pdf?lang=hi", headers=patient_headers)
+    assert pdf_hi.status_code == 200, pdf_hi.text
+    assert pdf_hi.content[:4] == b"%PDF"

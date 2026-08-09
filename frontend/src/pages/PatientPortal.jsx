@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AlertTriangle, FileText, FlaskConical, LogOut, Pill, Plus, Printer, Stethoscope, Thermometer, Trash2, Type, User, Users, Utensils } from "lucide-react";
+import { AlertTriangle, FileText, FlaskConical, LogOut, Pill, Plus, Stethoscope, Thermometer, Trash2, Type, User, Users, Utensils } from "lucide-react";
 import { colors, fonts, radius } from "../theme";
 import { api, ApiError } from "../api/client";
 import { useAuth } from "../AuthContext";
@@ -13,6 +13,7 @@ import Field from "../components/Field";
 import LanguageToggle from "../components/LanguageToggle";
 import EditProfileModal from "../components/EditProfileModal";
 import AudioPlayButton from "../components/AudioPlayButton";
+import DownloadPdfButton from "../components/DownloadPdfButton";
 
 const emptyCaregiverForm = { name: "", email: "", phone: "", relationship_label: "" };
 
@@ -435,26 +436,12 @@ export default function PatientPortal() {
                         <Type size={14} />
                         {!isMobile && "Larger Text"}
                       </button>
-                      <button
-                        onClick={() => window.print()}
-                        title="Print or save as PDF"
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: isMobile ? 0 : 6,
-                          padding: isMobile ? 8 : "6px 12px",
-                          borderRadius: radius.pill,
-                          border: `1px solid ${colors.border}`,
-                          background: colors.surface,
-                          color: colors.primaryDark,
-                          fontSize: 12.5,
-                          fontWeight: 600,
-                          cursor: "pointer",
-                        }}
-                      >
-                        <Printer size={14} />
-                        {!isMobile && "Print"}
-                      </button>
+                      <DownloadPdfButton
+                        path={`/patients/me/prescriptions/${detail.id}/pdf?lang=${lang}`}
+                        filename={`prescription-${detail.created_at.slice(0, 10)}.pdf`}
+                        disabled={lang === "hi" && !detail.chief_complaint_hi}
+                        iconOnly={isMobile}
+                      />
                       <LanguageToggle lang={lang} onChange={setLang} hindiAvailable={!!detail.chief_complaint_hi} />
                     </div>
                   </div>
