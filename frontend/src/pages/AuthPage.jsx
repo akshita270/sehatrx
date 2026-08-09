@@ -257,8 +257,7 @@ export default function AuthPage() {
               <Field label="Phone" value={patientForm.phone} onChange={(e) => setPatientForm({ ...patientForm, phone: e.target.value })} />
               <Field label="Age" type="number" value={patientForm.age} onChange={(e) => setPatientForm({ ...patientForm, age: e.target.value })} />
               <Field
-                label="Claim Code (given by your doctor at your visit)"
-                required
+                label="Claim Code (only if a doctor already added you at a visit)"
                 value={patientForm.claim_code}
                 onChange={(e) => setPatientForm({ ...patientForm, claim_code: e.target.value })}
               />
