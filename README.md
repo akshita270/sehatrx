@@ -186,6 +186,16 @@ app with realistic Hindi/Hinglish test conversations, not from a spec:
   admin UI to browse it yet since the app has no admin role - but the action itself
   can no longer disappear without a trace.
 
+- **The AI-cost rate limit was keyed by IP, not by who was actually using it.**
+  `slowapi`'s default key function is the caller's IP address. Two real problems:
+  every doctor on the same clinic WiFi shared one 20/hour bucket - one busy doctor
+  could lock out their colleagues - and it was trivially bypassed by switching
+  networks. Every endpoint it guards already requires a bearer token, so the fix
+  decodes the JWT directly in the key function (before FastAPI's normal dependency
+  injection has even run) and keys on the doctor's user ID instead, falling back to
+  IP only if there's no valid token. Verified two different users' tokens produce
+  different keys even when the request comes from the identical IP.
+
 ## Getting Started
 
 ### Prerequisites
@@ -307,5 +317,3 @@ not just more prompt engineering:
   hardcoded `en`/`hi` pair to a per-patient language preference)
 - No password-reset flow for any role yet — a locked-out doctor/patient/caregiver
   currently has no self-service recovery path
-- Rate limiting is per-IP rather than per-account (shared clinic networks share a
-  bucket; switching networks resets it) — should key off the authenticated user
