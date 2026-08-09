@@ -29,6 +29,12 @@ class ApiError extends Error {
   }
 }
 
+// Role-mismatch messages from require_doctor/require_patient/require_caregiver - these mean
+// the token in localStorage no longer matches what this page expects (e.g. a different tab
+// logged in as a different role and overwrote the shared session), not a business-logic
+// authorization failure. Treated the same as an expired token: clear session, send to login.
+const SESSION_INVALID_MESSAGES = ["Doctor access required", "Patient access required", "Caregiver access required"];
+
 async function request(path, { method = "GET", body, isFormData = false } = {}) {
   const headers = {};
   const token = getToken();
@@ -48,6 +54,13 @@ async function request(path, { method = "GET", body, isFormData = false } = {}) 
       detail = data.detail || detail;
     } catch {
       // ignore
+    }
+    const sessionInvalid = res.status === 401 || (res.status === 403 && SESSION_INVALID_MESSAGES.includes(detail));
+    if (sessionInvalid && token) {
+      clearSession();
+      if (typeof window !== "undefined" && window.location.pathname !== "/") {
+        window.location.href = "/";
+      }
     }
     throw new ApiError(detail, res.status);
   }
