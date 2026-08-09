@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   AlertCircle,
@@ -26,6 +26,8 @@ import Field from "../components/Field";
 import Waveform from "../components/Waveform";
 import LanguageToggle from "../components/LanguageToggle";
 import PatientHistoryPanel from "../components/PatientHistoryPanel";
+import { findAllergyConflicts } from "../utils/allergyCheck";
+import { findDrugInteractions } from "../utils/drugInteractionCheck";
 
 const STEPS = ["Record", "Transcript", "Prescription"];
 
@@ -364,6 +366,15 @@ export default function ConsultationPage() {
   const stepIndex =
     { record: 0, transcribing: 0, transcript: 1, generating: 1, prescription: 2, "view-sent": 2, sent: 2 }[stage] ?? 0;
 
+  const allergyConflicts = useMemo(
+    () => findAllergyConflicts(rx.allergies, rx.medicines),
+    [rx.allergies, rx.medicines]
+  );
+  const drugInteractions = useMemo(
+    () => findDrugInteractions(rx.medicines),
+    [rx.medicines]
+  );
+
   return (
     <div style={{ minHeight: "100vh" }}>
       <header
@@ -570,6 +581,30 @@ export default function ConsultationPage() {
                 onChange={(e) => setRx({ ...rx, allergies: e.target.value })}
               />
 
+              {allergyConflicts.length > 0 && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 10,
+                    background: colors.dangerSoft,
+                    color: colors.danger,
+                    borderRadius: radius.sm,
+                    padding: "10px 14px",
+                    fontSize: 13.5,
+                  }}
+                >
+                  <AlertCircle size={16} style={{ flexShrink: 0, marginTop: 2 }} />
+                  <div>
+                    <strong>Possible allergy conflict:</strong>{" "}
+                    {allergyConflicts
+                      .map((c) => `${c.medicine} (${c.allergyClass} family)`)
+                      .join(", ")}{" "}
+                    — matches the patient's reported allergies. Double-check before sending.
+                  </div>
+                </div>
+              )}
+
               <div>
                 <span style={{ fontSize: 13, fontWeight: 600, color: colors.textSoft }}>
                   Vitals (optional)
@@ -688,6 +723,45 @@ export default function ConsultationPage() {
                 <Button variant="ghost" size="sm" icon={Plus} onClick={addMedicine} style={{ marginTop: 10 }}>
                   Add Medicine
                 </Button>
+
+                {drugInteractions.length > 0 && (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 8,
+                      marginTop: 12,
+                    }}
+                  >
+                    {drugInteractions.map((c, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          display: "flex",
+                          alignItems: "flex-start",
+                          gap: 10,
+                          background: colors.dangerSoft,
+                          color: colors.danger,
+                          borderRadius: radius.sm,
+                          padding: "10px 14px",
+                          fontSize: 13.5,
+                        }}
+                      >
+                        <AlertCircle size={16} style={{ flexShrink: 0, marginTop: 2 }} />
+                        <div>
+                          <strong>
+                            {c.severity === "high" ? "Dangerous interaction:" : "Possible interaction:"}
+                          </strong>{" "}
+                          {c.drugA} + {c.drugB} — {c.note}. Double-check before sending.
+                        </div>
+                      </div>
+                    ))}
+                    <div style={{ fontSize: 11.5, color: colors.textFaint }}>
+                      This checks a short list of well-known combinations only — it is not exhaustive. Always
+                      verify independently.
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>
