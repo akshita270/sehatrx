@@ -1,5 +1,8 @@
 # SehatRx
 
+[![Backend Tests](https://github.com/akshita270/sehatrx/actions/workflows/tests.yml/badge.svg)](https://github.com/akshita270/sehatrx/actions/workflows/tests.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 **Consultations to prescriptions, without the paperwork.**
 
 SehatRx is an AI-assisted consultation and prescription workflow built for Indian
