@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 from app.models import ConsultationStatus
 
@@ -23,25 +23,29 @@ class DoctorRegisterRequest(BaseModel):
 
 class PatientRegisterRequest(BaseModel):
     name: str
-    email: EmailStr
-    password: str = Field(min_length=6)
-    claim_code: str | None = None
+    email: EmailStr | None = None
     phone: str | None = None
+    password: str = Field(min_length=6)
     age: int | None = None
     gender: str | None = None
     known_allergies: str | None = None
+
+    @model_validator(mode="after")
+    def require_email_or_phone(self) -> "PatientRegisterRequest":
+        if not self.email and not self.phone:
+            raise ValueError("Enter either an email or a phone number")
+        return self
 
 
 class CaregiverRegisterRequest(BaseModel):
     name: str
     email: EmailStr
     password: str = Field(min_length=6)
-    claim_code: str | None = None
     phone: str | None = None
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    identifier: str
     password: str
     role: Role
 
@@ -103,7 +107,6 @@ class PatientResponse(BaseModel):
     age: int | None = None
     gender: str | None = None
     known_allergies: str | None = None
-    claim_code: str | None = None
 
 
 class PatientHistoryMedicine(BaseModel):
@@ -138,7 +141,6 @@ class CaregiverResponse(BaseModel):
     phone: str | None = None
     relationship_label: str | None = None
     has_registered: bool = False
-    claim_code: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

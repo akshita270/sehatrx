@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.auth import generate_claim_code, get_current_doctor
+from app.auth import get_current_doctor
 from app.database import get_db
 from app.models import Consultation, ConsultationStatus, Doctor, Patient
 from app.schemas import (
@@ -33,10 +33,24 @@ def create_patient(
     db: Session = Depends(get_db),
     _doctor: Doctor = Depends(get_current_doctor),
 ):
+    existing = None
     if payload.email:
         existing = db.query(Patient).filter(Patient.email == payload.email).first()
-        if existing:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A patient with this email already exists")
+    if not existing and payload.phone:
+        existing = db.query(Patient).filter(Patient.phone == payload.phone).first()
+
+    if existing:
+        # Same patient seen again (possibly by a different doctor) - reuse their record
+        # instead of creating a disconnected duplicate with no history.
+        existing.name = payload.name or existing.name
+        existing.age = payload.age or existing.age
+        existing.gender = payload.gender or existing.gender
+        existing.phone = payload.phone or existing.phone
+        existing.email = payload.email or existing.email
+        existing.known_allergies = payload.known_allergies or existing.known_allergies
+        db.commit()
+        db.refresh(existing)
+        return existing
 
     patient = Patient(
         name=payload.name,
@@ -45,7 +59,6 @@ def create_patient(
         phone=payload.phone,
         email=payload.email,
         known_allergies=payload.known_allergies,
-        claim_code=generate_claim_code() if payload.email else None,
     )
     db.add(patient)
     db.commit()

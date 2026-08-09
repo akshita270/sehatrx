@@ -284,7 +284,6 @@ def test_patient_can_download_prescription_pdf(client, monkeypatch, register_doc
             "name": "PDF Patient",
             "email": "pdf-patient@example.com",
             "password": "password123",
-            "claim_code": patient.json()["claim_code"],
         },
     )
     assert patient_login.status_code == 201, patient_login.text

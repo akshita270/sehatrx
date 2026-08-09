@@ -84,19 +84,19 @@ def register_doctor(payload: DoctorRegisterRequest, db: Session = Depends(get_db
 
 @router.post("/register/patient", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 def register_patient(payload: PatientRegisterRequest, db: Session = Depends(get_db)):
-    existing = db.query(Patient).filter(Patient.email == payload.email).first()
+    existing = None
+    if payload.email:
+        existing = db.query(Patient).filter(Patient.email == payload.email).first()
+    if not existing and payload.phone:
+        existing = db.query(Patient).filter(Patient.phone == payload.phone).first()
+
     if existing:
         if existing.password_hash:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
-        # Walk-in patient added by a doctor is now self-registering - the claim code
-        # proves this is actually them, not just someone who knows/guessed their email.
-        if not payload.claim_code or payload.claim_code != existing.claim_code:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Incorrect claim code. Ask your doctor for the code they gave you at your visit.",
-            )
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Already registered - try signing in instead")
+        # A doctor already added this person as a walk-in (e.g. from a visit) - link
+        # this registration to that existing record instead of creating a duplicate.
+        existing.email = payload.email or existing.email
         existing.password_hash = hash_password(payload.password)
-        existing.claim_code = None
         existing.phone = payload.phone or existing.phone
         existing.age = payload.age or existing.age
         existing.gender = payload.gender or existing.gender
@@ -134,15 +134,9 @@ def register_caregiver(payload: CaregiverRegisterRequest, db: Session = Depends(
         )
     if existing.password_hash:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
-    if not payload.claim_code or payload.claim_code != existing.claim_code:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Incorrect claim code. Ask the patient for the code shown in their Family Access section.",
-        )
 
     existing.name = payload.name
     existing.password_hash = hash_password(payload.password)
-    existing.claim_code = None
     existing.phone = payload.phone or existing.phone
     db.commit()
     db.refresh(existing)
@@ -153,23 +147,28 @@ def register_caregiver(payload: CaregiverRegisterRequest, db: Session = Depends(
 
 @router.post("/login", response_model=TokenResponse)
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
-    invalid = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
+    invalid = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
     if payload.role == "doctor":
-        doctor = db.query(Doctor).filter(Doctor.email == payload.email).first()
+        doctor = db.query(Doctor).filter(Doctor.email == payload.identifier).first()
         if not doctor or not verify_password(payload.password, doctor.password_hash):
             raise invalid
         token = create_access_token(doctor.id, "doctor")
         return TokenResponse(access_token=token, role="doctor", user=_doctor_to_me(doctor))
 
     if payload.role == "caregiver":
-        caregiver = db.query(Caregiver).filter(Caregiver.email == payload.email).first()
+        caregiver = db.query(Caregiver).filter(Caregiver.email == payload.identifier).first()
         if not caregiver or not caregiver.password_hash or not verify_password(payload.password, caregiver.password_hash):
             raise invalid
         token = create_access_token(caregiver.id, "caregiver")
         return TokenResponse(access_token=token, role="caregiver", user=_caregiver_to_me(caregiver))
 
-    patient = db.query(Patient).filter(Patient.email == payload.email).first()
+    # Patients may have registered with an email, a phone number, or both.
+    patient = (
+        db.query(Patient)
+        .filter((Patient.email == payload.identifier) | (Patient.phone == payload.identifier))
+        .first()
+    )
     if not patient or not patient.password_hash or not verify_password(payload.password, patient.password_hash):
         raise invalid
     token = create_access_token(patient.id, "patient")

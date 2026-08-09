@@ -160,17 +160,24 @@ app with realistic Hindi/Hinglish test conversations, not from a spec:
   drafting and surface a one-click "save to profile" prompt at the moment it's
   cheapest to act on — while the doctor is already looking at the draft.
 
-- **Knowing a patient's email was enough to steal their account.** Walk-in patients
-  (and invited family caregivers) start as an unclaimed record — a name and email
-  with no password — until they self-register with matching credentials. The claim
-  step had no identity check at all: anyone who submitted that email got to set the
-  password and see the patient's full history, allergies included. Fixed with a
-  single-use claim code generated when the record is created, which the doctor (or
-  patient, for a caregiver invite) hands over in person or through their own channel
-  — registering now requires the email *and* that code, so knowing or guessing an
-  email alone is no longer enough. Verified with a live attack simulation: a fake
-  "attacker" registration using the correct email but a wrong code was rejected with
-  a 403, while the code holder succeeded.
+- **Knowing a patient's email was enough to steal their account** — and, worse,
+  Indian clinics routinely see elderly patients with no email at all, which the app
+  couldn't handle. Walk-in patients (and invited family caregivers) start as an
+  unclaimed record until they self-register with matching credentials. First fix was
+  a single-use claim code the doctor hands over in person, required alongside the
+  email to register. That closed the takeover hole but broke the common case: a
+  patient with no email couldn't be added at all, and testing surfaced a second bug —
+  the same person ended up as two disconnected database rows (one from the doctor's
+  walk-in entry, one from a later self-registration) with no link between them, so
+  their sent prescription was invisible from their own portal login.
+  The claim code was removed in favor of a different tradeoff: patients can now be
+  identified by phone *or* email (either one, not both), and adding a patient looks
+  up existing records by whichever identifier is given so the same person is reused
+  instead of duplicated. Self-registration links to that record directly, with no
+  separate proof-of-identity step. For a real clinic handling real patient data, that
+  step (claim code, or an SMS OTP) would need to come back — but it requires a paid
+  SMS/email provider to do properly, and this project has no real patients to
+  protect, so the simpler flow won for now. Noted here rather than silently dropped.
 
 - **The "locked" prescription had an unlocked door right next to it.** Sending a
   prescription correctly blocks further edits to the prescription itself

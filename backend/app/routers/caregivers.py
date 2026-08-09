@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
-from app.auth import generate_claim_code, get_current_caregiver, get_current_patient
+from app.auth import get_current_caregiver, get_current_patient
 from app.database import get_db
 from app.limiter import limiter
 from app.models import Caregiver, CaregiverPatientLink, Patient, Prescription, PrescriptionAudio
@@ -29,7 +29,6 @@ def list_my_caregivers(db: Session = Depends(get_db), patient: Patient = Depends
             phone=link.caregiver.phone,
             relationship_label=link.relationship_label,
             has_registered=bool(link.caregiver.password_hash),
-            claim_code=link.caregiver.claim_code if not link.caregiver.password_hash else None,
         )
         for link in links
     ]
@@ -43,11 +42,9 @@ def add_caregiver(
 ):
     caregiver = db.query(Caregiver).filter(Caregiver.email == payload.email).first()
     if not caregiver:
-        caregiver = Caregiver(name=payload.name, email=payload.email, phone=payload.phone, claim_code=generate_claim_code())
+        caregiver = Caregiver(name=payload.name, email=payload.email, phone=payload.phone)
         db.add(caregiver)
         db.flush()
-    elif not caregiver.password_hash and not caregiver.claim_code:
-        caregiver.claim_code = generate_claim_code()
 
     existing_link = (
         db.query(CaregiverPatientLink)
@@ -73,7 +70,6 @@ def add_caregiver(
         phone=caregiver.phone,
         relationship_label=link.relationship_label,
         has_registered=bool(caregiver.password_hash),
-        claim_code=caregiver.claim_code if not caregiver.password_hash else None,
     )
 
 

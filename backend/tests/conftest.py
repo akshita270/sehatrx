@@ -93,7 +93,7 @@ def register_patient(client):
             "name": "Test Patient",
             "email": email,
             "password": "password123",
-            "phone": "+91 90000 11111",
+            "phone": "+91 90000 99999",
             "age": 30,
             "gender": "Other",
             **overrides,

@@ -30,7 +30,7 @@ def test_login_wrong_password_rejected(client, register_doctor):
     register_doctor(email="wrongpass@example.com")
     res = client.post(
         "/auth/login",
-        json={"email": "wrongpass@example.com", "password": "not-the-password", "role": "doctor"},
+        json={"identifier": "wrongpass@example.com", "password": "not-the-password", "role": "doctor"},
     )
     assert res.status_code == 401
 
@@ -39,7 +39,7 @@ def test_login_success_and_me(client, register_doctor):
     register_doctor(email="loginok@example.com")
     res = client.post(
         "/auth/login",
-        json={"email": "loginok@example.com", "password": "password123", "role": "doctor"},
+        json={"identifier": "loginok@example.com", "password": "password123", "role": "doctor"},
     )
     assert res.status_code == 200
     token = res.json()
@@ -55,37 +55,41 @@ def test_me_requires_auth(client):
     assert res.status_code == 401
 
 
-def test_patient_register_claims_existing_walkin(client, register_doctor):
+def test_patient_register_claims_walkin_by_phone(client, register_doctor):
+    """A walk-in with no email should still be claimable by matching phone number."""
     doctor = register_doctor(email="walkin-doc@example.com")
     headers = auth_header(doctor)
 
     walkin = client.post(
         "/patients",
-        json={"name": "Walk In Patient", "age": 40, "gender": "Male", "phone": "+91 90000 33333"},
+        json={"name": "Walk In Patient", "age": 40, "gender": "Male", "phone": "+91 90000 88888"},
         headers=headers,
     )
     assert walkin.status_code == 201
+    walkin_id = walkin.json()["id"]
     assert walkin.json()["email"] is None
 
-    # The walk-in later self-registers with a matching... well they have no email yet, so
-    # instead verify a *different* patient with a fresh email creates cleanly (walk-ins with
-    # no email can't be claimed by email match, by design).
-    fresh = client.post(
+    claim = client.post(
         "/auth/register/patient",
         json={
             "name": "Walk In Patient",
-            "email": "walkin-claim@example.com",
+            "phone": "+91 90000 88888",
             "password": "password123",
-            "phone": "+91 90000 33333",
             "age": 40,
             "gender": "Male",
         },
     )
-    assert fresh.status_code == 201
-    assert fresh.json()["user"]["email"] == "walkin-claim@example.com"
+    assert claim.status_code == 201
+    # Registering with the matching phone attaches to the *same* walk-in record, not a duplicate.
+    assert claim.json()["user"]["id"] == walkin_id
+
+    login = client.post(
+        "/auth/login", json={"identifier": "+91 90000 88888", "password": "password123", "role": "patient"}
+    )
+    assert login.status_code == 200
 
 
-def test_patient_register_claims_walkin_added_with_email(client, register_doctor):
+def test_patient_register_claims_walkin_by_email(client, register_doctor):
     doctor = register_doctor(email="walkin-doc2@example.com")
     headers = auth_header(doctor)
 
@@ -102,14 +106,6 @@ def test_patient_register_claims_walkin_added_with_email(client, register_doctor
     )
     assert walkin.status_code == 201
     walkin_id = walkin.json()["id"]
-    claim_code = walkin.json()["claim_code"]
-    assert claim_code
-
-    no_code = client.post(
-        "/auth/register/patient",
-        json={"name": "Rahul Sharma", "email": "rahul@example.com", "password": "newpassword123"},
-    )
-    assert no_code.status_code == 403
 
     claim = client.post(
         "/auth/register/patient",
@@ -117,8 +113,6 @@ def test_patient_register_claims_walkin_added_with_email(client, register_doctor
             "name": "Rahul Sharma",
             "email": "rahul@example.com",
             "password": "newpassword123",
-            "claim_code": claim_code,
-            "phone": "+91 90000 44444",
             "age": 45,
             "gender": "Male",
         },
@@ -128,6 +122,14 @@ def test_patient_register_claims_walkin_added_with_email(client, register_doctor
     assert claim.json()["user"]["id"] == walkin_id
 
     login = client.post(
-        "/auth/login", json={"email": "rahul@example.com", "password": "newpassword123", "role": "patient"}
+        "/auth/login", json={"identifier": "rahul@example.com", "password": "newpassword123", "role": "patient"}
     )
     assert login.status_code == 200
+
+
+def test_patient_register_requires_email_or_phone(client):
+    res = client.post(
+        "/auth/register/patient",
+        json={"name": "No Contact Info", "password": "password123"},
+    )
+    assert res.status_code == 422

@@ -17,9 +17,9 @@ const FEATURES = [
 const HOME_BY_ROLE = { doctor: "/dashboard", patient: "/portal", caregiver: "/family" };
 
 const emptyDoctorForm = { name: "", email: "", password: "", specialization: "", clinic: "", reg_no: "", phone: "" };
-const emptyPatientForm = { name: "", email: "", password: "", phone: "", age: "", claim_code: "" };
-const emptyCaregiverForm = { name: "", email: "", password: "", phone: "", claim_code: "" };
-const emptyLoginForm = { email: "", password: "" };
+const emptyPatientForm = { name: "", email: "", password: "", phone: "", age: "" };
+const emptyCaregiverForm = { name: "", email: "", password: "", phone: "" };
+const emptyLoginForm = { identifier: "", password: "" };
 
 export default function AuthPage() {
   const [mode, setMode] = useState("login"); // login | register
@@ -52,8 +52,12 @@ export default function AuthPage() {
 
   async function handleRegister(e) {
     e.preventDefault();
-    setLoading(true);
     setError("");
+    if (role === "patient" && !patientForm.email && !patientForm.phone) {
+      setError("Enter either an email or a phone number.");
+      return;
+    }
+    setLoading(true);
     try {
       const path = { doctor: "/auth/register/doctor", patient: "/auth/register/patient", caregiver: "/auth/register/caregiver" }[role];
       const payload =
@@ -61,7 +65,7 @@ export default function AuthPage() {
           ? doctorForm
           : role === "caregiver"
           ? caregiverForm
-          : { ...patientForm, age: patientForm.age ? Number(patientForm.age) : null };
+          : { ...patientForm, email: patientForm.email || null, age: patientForm.age ? Number(patientForm.age) : null };
       const res = await api.post(path, payload);
       login(res.access_token, res.user);
       navigate(HOME_BY_ROLE[role]);
@@ -217,12 +221,12 @@ export default function AuthPage() {
           {mode === "login" ? (
             <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <Field
-                label="Email"
-                type="email"
+                label={role === "patient" ? "Email or Phone Number" : "Email"}
+                type="text"
                 required
-                value={loginForm.email}
-                onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
-                placeholder="you@example.com"
+                value={loginForm.identifier}
+                onChange={(e) => setLoginForm({ ...loginForm, identifier: e.target.value })}
+                placeholder={role === "patient" ? "you@example.com or phone number" : "you@example.com"}
               />
               <Field
                 label="Password"
@@ -252,15 +256,19 @@ export default function AuthPage() {
           ) : role === "patient" ? (
             <form onSubmit={handleRegister} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <Field label="Full Name" required value={patientForm.name} onChange={(e) => setPatientForm({ ...patientForm, name: e.target.value })} />
-              <Field label="Email" type="email" required value={patientForm.email} onChange={(e) => setPatientForm({ ...patientForm, email: e.target.value })} />
-              <Field label="Password" type="password" required value={patientForm.password} onChange={(e) => setPatientForm({ ...patientForm, password: e.target.value })} />
-              <Field label="Phone" value={patientForm.phone} onChange={(e) => setPatientForm({ ...patientForm, phone: e.target.value })} />
-              <Field label="Age" type="number" value={patientForm.age} onChange={(e) => setPatientForm({ ...patientForm, age: e.target.value })} />
               <Field
-                label="Claim Code (only if a doctor already added you at a visit)"
-                value={patientForm.claim_code}
-                onChange={(e) => setPatientForm({ ...patientForm, claim_code: e.target.value })}
+                label="Email (or enter a phone number below)"
+                type="email"
+                value={patientForm.email}
+                onChange={(e) => setPatientForm({ ...patientForm, email: e.target.value })}
               />
+              <Field
+                label="Phone (or enter an email above)"
+                value={patientForm.phone}
+                onChange={(e) => setPatientForm({ ...patientForm, phone: e.target.value })}
+              />
+              <Field label="Password" type="password" required value={patientForm.password} onChange={(e) => setPatientForm({ ...patientForm, password: e.target.value })} />
+              <Field label="Age" type="number" value={patientForm.age} onChange={(e) => setPatientForm({ ...patientForm, age: e.target.value })} />
               <Button type="submit" disabled={loading} fullWidth style={{ marginTop: 8 }}>
                 {loading ? "Creating account…" : "Create Patient Account"}
               </Button>
@@ -277,12 +285,6 @@ export default function AuthPage() {
               />
               <Field label="Password" type="password" required value={caregiverForm.password} onChange={(e) => setCaregiverForm({ ...caregiverForm, password: e.target.value })} />
               <Field label="Phone" value={caregiverForm.phone} onChange={(e) => setCaregiverForm({ ...caregiverForm, phone: e.target.value })} />
-              <Field
-                label="Claim Code (given by the patient in their Family Access section)"
-                required
-                value={caregiverForm.claim_code}
-                onChange={(e) => setCaregiverForm({ ...caregiverForm, claim_code: e.target.value })}
-              />
               <Button type="submit" disabled={loading} fullWidth style={{ marginTop: 8 }}>
                 {loading ? "Creating account…" : "Create Family Account"}
               </Button>
