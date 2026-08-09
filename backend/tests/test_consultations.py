@@ -314,3 +314,20 @@ def test_patient_history_excludes_unsent_consultations(client, register_doctor):
     history = client.get(f"/patients/{patient_id}/history", headers=headers)
     assert history.status_code == 200, history.text
     assert history.json() == []
+
+
+def test_transcript_cannot_be_edited_after_sending(client, monkeypatch, register_doctor):
+    doctor = register_doctor(email="lock-transcript@example.com")
+    consultation_id = _create_and_send_prescription(client, monkeypatch, doctor)
+    headers = auth_header(doctor)
+
+    tamper = client.patch(
+        f"/consultations/{consultation_id}/transcript",
+        json={"transcript_text": "TAMPERED TRANSCRIPT"},
+        headers=headers,
+    )
+    assert tamper.status_code == 409
+
+    unchanged = client.get("/consultations", headers=headers)
+    match = next(c for c in unchanged.json() if c["id"] == consultation_id)
+    assert match["transcript_text"] == "Doctor and patient discuss fever."

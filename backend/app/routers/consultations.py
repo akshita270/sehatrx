@@ -149,6 +149,11 @@ def update_transcript(
     doctor: Doctor = Depends(get_current_doctor),
 ):
     consultation = _get_owned_consultation(consultation_id, doctor, db)
+    if consultation.status == ConsultationStatus.sent:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This consultation's prescription has already been sent - the transcript can no longer be edited.",
+        )
     consultation.transcript_text = payload.transcript_text
     db.commit()
     db.refresh(consultation)

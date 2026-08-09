@@ -167,6 +167,14 @@ app with realistic Hindi/Hinglish test conversations, not from a spec:
   "attacker" registration using the correct email but a wrong code was rejected with
   a 403, while the code holder succeeded.
 
+- **The "locked" prescription had an unlocked door right next to it.** Sending a
+  prescription correctly blocks further edits to the prescription itself
+  (`update_prescription`/`approve_consultation` both check `status == sent`) - but
+  `update_transcript` had no such check. The actual record of what was said during
+  the consultation could still be silently rewritten after the (locked) prescription
+  had already gone to the patient, which defeats the point of locking anything.
+  Fixed with the same check, copied from the endpoints that already had it.
+
 ## Getting Started
 
 ### Prerequisites
