@@ -283,6 +283,7 @@ class PrescriptionDetailResponse(PrescriptionResponse):
     patient_name: str
     patient_age: int | None = None
     patient_gender: str | None = None
+    patient_known_allergies: str | None = None
 
 
 # ---------- Consultations ----------

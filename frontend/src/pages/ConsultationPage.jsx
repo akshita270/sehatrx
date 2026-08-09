@@ -409,7 +409,7 @@ export default function ConsultationPage() {
       </header>
 
       <main style={{ padding: isMobile ? "24px 20px" : "36px 40px", maxWidth: 720, margin: "0 auto" }}>
-        {patientKnownAllergies && stage !== "sent" && (
+        {patientKnownAllergies && stage === "prescription" && (
           <div
             style={{
               display: "flex",
@@ -925,6 +925,23 @@ export default function ConsultationPage() {
                 )}
               </div>
             </div>
+
+            {patientKnownAllergies && (
+              <div
+                style={{
+                  background: colors.dangerSoft,
+                  border: `1.5px solid ${colors.danger}`,
+                  borderRadius: radius.sm,
+                  padding: "10px 14px",
+                  marginBottom: 18,
+                }}
+              >
+                <div style={{ fontSize: 11, fontWeight: 700, color: colors.danger, textTransform: "uppercase", letterSpacing: 0.3 }}>
+                  {lang === "hi" ? "ज्ञात एलर्जी" : "Known Allergies"}
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: colors.danger, marginTop: 2 }}>{patientKnownAllergies}</div>
+              </div>
+            )}
 
             <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
               <ReadOnlySection label={lang === "hi" ? "मुख्य शिकायत" : "Chief Complaint"}>

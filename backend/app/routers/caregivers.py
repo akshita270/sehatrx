@@ -152,6 +152,7 @@ def _to_detail(prescription: Prescription) -> PrescriptionDetailResponse:
         patient_name=patient.name,
         patient_age=patient.age,
         patient_gender=patient.gender,
+        patient_known_allergies=patient.known_allergies,
     )
 
 

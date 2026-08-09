@@ -470,6 +470,25 @@ export default function PatientPortal() {
                     )}
                   </div>
 
+                  {detail.patient_known_allergies && (
+                    <div
+                      style={{
+                        background: colors.dangerSoft,
+                        border: `1.5px solid ${colors.danger}`,
+                        borderRadius: radius.sm,
+                        padding: "10px 14px",
+                        marginBottom: 20,
+                      }}
+                    >
+                      <div style={{ fontSize: 11, fontWeight: 700, color: colors.danger, textTransform: "uppercase", letterSpacing: 0.3 }}>
+                        {lang === "hi" ? "ज्ञात एलर्जी" : "Known Allergies"}
+                      </div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: colors.danger, marginTop: 2 }}>
+                        {detail.patient_known_allergies}
+                      </div>
+                    </div>
+                  )}
+
                   <Section title={lang === "hi" ? "मुख्य शिकायत" : "Chief Complaint"}>
                     {(lang === "hi" ? detail.chief_complaint_hi : detail.chief_complaint) || "—"}
                   </Section>
