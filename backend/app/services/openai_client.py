@@ -63,6 +63,7 @@ PRESCRIPTION_JSON_SCHEMA = {
         "properties": {
             "chiefComplaint": {"type": "string"},
             "diagnosis": {"type": "string"},
+            "allergies": {"type": "string"},
             "vitals": {
                 "type": "object",
                 "properties": {
@@ -105,17 +106,16 @@ PRESCRIPTION_JSON_SCHEMA = {
             },
             "dietAdvice": {"type": "string"},
             "advice": {"type": "string"},
-            "newAllergyMentioned": {"type": "string"},
         },
         "required": [
             "chiefComplaint",
             "diagnosis",
+            "allergies",
             "vitals",
             "medicines",
             "tests",
             "dietAdvice",
             "advice",
-            "newAllergyMentioned",
         ],
         "additionalProperties": False,
     },
@@ -126,7 +126,8 @@ SYSTEM_PROMPT = (
     "doctor-patient consultation transcript. Consultations in Indian clinics are frequently "
     "conducted in Hindi, English, or a Hindi-English code-switched mix (Hinglish); the transcript "
     "may contain any of these, sometimes within the same sentence. Understand it regardless of "
-    "language, but always write the extracted chiefComplaint, diagnosis, dietAdvice, and advice in "
+    "language, but always write the extracted chiefComplaint, diagnosis, allergies, dietAdvice, and "
+    "advice in "
     "clear, standard medical English, as is conventional for prescriptions written by Indian doctors, "
     "even when the conversation itself was in Hindi or Hinglish. Medicine names should be kept in "
     "their standard pharmaceutical form. Extract the chief complaint, a likely diagnosis, any vitals "
@@ -182,14 +183,15 @@ SYSTEM_PROMPT = (
     "or flipped a negation: for example, if the doctor says fasting is NOT required "
     "('फास्टिंग जरूरी नहीं है'), the extracted instruction must say 'fasting not required', never "
     "'fasting required'. "
-    "Separately, listen for the patient mentioning any drug or food allergy, or a past adverse/bad "
-    "reaction to a medicine, anywhere in the conversation - even if it's unrelated to today's "
-    "diagnosis or medicines, and even in passing (e.g. 'mujhe penicillin se allergy hai', 'sulfa "
-    "drugs se rash ho jaata hai', 'I'm allergic to...', 'that medicine made me break out last time'). "
-    "If this happens, put a short, clear phrase naming the substance and reaction if given (e.g. "
-    "'Penicillin', 'Sulfa drugs (rash)') into newAllergyMentioned. Leave newAllergyMentioned as '' "
-    "(empty string) if no allergy or adverse reaction was mentioned anywhere in the transcript - never "
-    "invent one. "
+    "Also listen for the patient mentioning any drug or food allergy, or a past adverse/bad reaction to "
+    "a medicine, anywhere in the conversation - even if it's unrelated to today's diagnosis or "
+    "medicines, and even in passing (e.g. 'mujhe penicillin se allergy hai', 'sulfa drugs se rash ho "
+    "jaata hai', 'I'm allergic to...', 'that medicine made me break out last time'). If this happens, "
+    "put a short, clear phrase naming the substance and reaction if given (e.g. 'Penicillin', 'Sulfa "
+    "drugs (rash)') into allergies - if more than one is mentioned, separate them with commas. Leave "
+    "allergies as '' (empty string) if no allergy or adverse reaction was mentioned anywhere in the "
+    "transcript - never invent one, and never infer an allergy from a medicine simply not being "
+    "prescribed. "
     "This prescription is read directly by the patient, not another clinician, so never write raw "
     "clinical shorthand into freq, timing, timingWhen, dietAdvice, or advice - always expand it into "
     "plain everyday language a patient can understand, even if that's exactly how the doctor said it. "
@@ -247,6 +249,7 @@ TRANSLATION_JSON_SCHEMA = {
         "properties": {
             "chiefComplaintHi": {"type": "string"},
             "diagnosisHi": {"type": "string"},
+            "allergiesHi": {"type": "string"},
             "medicines": {
                 "type": "array",
                 "items": {
@@ -275,7 +278,15 @@ TRANSLATION_JSON_SCHEMA = {
             "dietAdviceHi": {"type": "string"},
             "adviceHi": {"type": "string"},
         },
-        "required": ["chiefComplaintHi", "diagnosisHi", "medicines", "tests", "dietAdviceHi", "adviceHi"],
+        "required": [
+            "chiefComplaintHi",
+            "diagnosisHi",
+            "allergiesHi",
+            "medicines",
+            "tests",
+            "dietAdviceHi",
+            "adviceHi",
+        ],
         "additionalProperties": False,
     },
 }
@@ -285,8 +296,9 @@ TRANSLATION_SYSTEM_PROMPT = (
     "script) for patients in India, many of whom cannot read English, especially elderly patients. "
     "Write in simple, everyday Hindi that a layperson can read aloud and understand, not stiff "
     "textbook Hindi. Keep it warm and clear, the way a doctor would explain it to a patient's "
-    "family in Hindi. Translate the chief complaint, diagnosis, diet advice, and advice fully - if "
-    "diet advice is an empty string, return an empty string for dietAdviceHi. For each medicine, "
+    "family in Hindi. Translate the chief complaint, diagnosis, allergies, diet advice, and advice "
+    "fully - if diet advice or allergies is an empty string, return an empty string for dietAdviceHi "
+    "or allergiesHi respectively. For each medicine, "
     "translate the frequency, duration, timing, and timingWhen into natural spoken Hindi (e.g. 'twice a "
     "day' -> 'दिन में दो बार', '5 days' -> '5 दिन तक', 'Before Food' -> 'खाने से पहले', 'After Food' -> "
     "'खाने के बाद', 'With Food' -> 'खाने के साथ', 'Empty Stomach' -> 'खाली पेट', 'Anytime' -> 'कभी भी', "
@@ -310,6 +322,7 @@ TRANSLATION_SYSTEM_PROMPT = (
 def _build_translation_input(
     chief_complaint: str,
     diagnosis: str,
+    allergies: str,
     diet_advice: str,
     advice: str,
     medicines: list[MedicineItem],
@@ -318,6 +331,7 @@ def _build_translation_input(
     lines = [
         f"Chief Complaint: {chief_complaint}",
         f"Diagnosis: {diagnosis}",
+        f"Allergies: {allergies}",
         "Medicines:",
     ]
     for i, med in enumerate(medicines, start=1):
@@ -335,13 +349,16 @@ def _build_translation_input(
 def translate_to_hindi(
     chief_complaint: str,
     diagnosis: str,
+    allergies: str,
     diet_advice: str,
     advice: str,
     medicines: list[MedicineItem],
     tests: list[TestItem],
 ) -> PrescriptionTranslation:
     client = get_client()
-    user_content = _build_translation_input(chief_complaint, diagnosis, diet_advice, advice, medicines, tests)
+    user_content = _build_translation_input(
+        chief_complaint, diagnosis, allergies, diet_advice, advice, medicines, tests
+    )
 
     try:
         response = client.chat.completions.create(

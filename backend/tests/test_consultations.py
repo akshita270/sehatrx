@@ -21,6 +21,7 @@ def _fake_translate_to_hindi(**kwargs) -> PrescriptionTranslation:
     return PrescriptionTranslation(
         chiefComplaintHi="बुखार",
         diagnosisHi="वायरल बुखार",
+        allergiesHi="पेनिसिलिन" if kwargs.get("allergies") else "",
         medicines=[
             MedicineTranslation(freqHi="test", durationHi="test", timingHi="", timingWhenHi="") for _ in medicines
         ],
@@ -35,12 +36,12 @@ def _fake_draft_prescription_with_allergy(allergy_text):
         return PrescriptionDraft(
             chiefComplaint="Fever for three days",
             diagnosis="Viral fever",
+            allergies=allergy_text,
             vitals=VitalsItem(),
             medicines=[MedicineItem(name="Paracetamol", dose="500mg", freq="Twice daily", duration="5 days")],
             tests=[],
             dietAdvice="Bland diet, khichdi.",
             advice="Rest and fluids.",
-            newAllergyMentioned=allergy_text,
         )
 
     return _inner
@@ -176,7 +177,7 @@ def test_transcribe_rejects_oversized_audio(client, register_doctor):
     assert res.status_code == 413
 
 
-def test_draft_rx_flags_new_allergy_mention(client, monkeypatch, register_doctor):
+def test_draft_rx_extracts_allergy_mentioned_in_consultation(client, monkeypatch, register_doctor):
     doctor = register_doctor(email="allergy-new@example.com")
     monkeypatch.setattr(
         "app.routers.consultations.draft_prescription", _fake_draft_prescription_with_allergy("Penicillin")
@@ -195,33 +196,7 @@ def test_draft_rx_flags_new_allergy_mention(client, monkeypatch, register_doctor
 
     draft = client.post(f"/consultations/{consultation_id}/draft-rx", json={}, headers=headers)
     assert draft.status_code == 200, draft.text
-    assert draft.json()["new_allergy_mentioned"] == "Penicillin"
-
-
-def test_draft_rx_does_not_flag_already_known_allergy(client, monkeypatch, register_doctor):
-    doctor = register_doctor(email="allergy-known@example.com")
-    monkeypatch.setattr(
-        "app.routers.consultations.draft_prescription", _fake_draft_prescription_with_allergy("Penicillin")
-    )
-    headers = auth_header(doctor)
-
-    patient = client.post(
-        "/patients",
-        json={"name": "Already Known Allergy Patient", "age": 40, "known_allergies": "Penicillin"},
-        headers=headers,
-    )
-    consultation_id = client.post(
-        "/consultations", json={"patient_id": patient.json()["id"]}, headers=headers
-    ).json()["id"]
-    client.patch(
-        f"/consultations/{consultation_id}/transcript",
-        json={"transcript_text": "Patient mentions penicillin allergy again."},
-        headers=headers,
-    )
-
-    draft = client.post(f"/consultations/{consultation_id}/draft-rx", json={}, headers=headers)
-    assert draft.status_code == 200, draft.text
-    assert draft.json()["new_allergy_mentioned"] is None
+    assert draft.json()["allergies"] == "Penicillin"
 
 
 def test_draft_rx_no_allergy_mentioned(client, monkeypatch, register_doctor):
@@ -241,21 +216,40 @@ def test_draft_rx_no_allergy_mentioned(client, monkeypatch, register_doctor):
 
     draft = client.post(f"/consultations/{consultation_id}/draft-rx", json={}, headers=headers)
     assert draft.status_code == 200, draft.text
-    assert draft.json()["new_allergy_mentioned"] is None
+    assert draft.json()["allergies"] is None
 
 
-def test_update_patient_allergies(client, register_doctor):
-    doctor = register_doctor(email="update-allergies@example.com")
+def test_doctor_can_edit_allergies_before_sending(client, monkeypatch, register_doctor):
+    doctor = register_doctor(email="edit-allergies@example.com")
+    monkeypatch.setattr(
+        "app.routers.consultations.draft_prescription", _fake_draft_prescription_with_allergy("Penicillin")
+    )
     headers = auth_header(doctor)
 
     patient = client.post("/patients", json={"name": "Editable Allergy Patient"}, headers=headers)
-    patient_id = patient.json()["id"]
+    consultation_id = client.post(
+        "/consultations", json={"patient_id": patient.json()["id"]}, headers=headers
+    ).json()["id"]
+    client.patch(
+        f"/consultations/{consultation_id}/transcript",
+        json={"transcript_text": "Patient mentions penicillin allergy."},
+        headers=headers,
+    )
+    client.post(f"/consultations/{consultation_id}/draft-rx", json={}, headers=headers)
 
     update = client.patch(
-        f"/patients/{patient_id}/allergies", json={"known_allergies": "Penicillin, Sulfa drugs"}, headers=headers
+        f"/consultations/{consultation_id}/prescription",
+        json={
+            "chiefComplaint": "Fever",
+            "diagnosis": "Viral fever",
+            "allergies": "Penicillin, Sulfa drugs (rash)",
+            "medicines": [],
+            "advice": "Rest",
+        },
+        headers=headers,
     )
     assert update.status_code == 200, update.text
-    assert update.json()["known_allergies"] == "Penicillin, Sulfa drugs"
+    assert update.json()["allergies"] == "Penicillin, Sulfa drugs (rash)"
 
 
 def test_patient_can_download_prescription_pdf(client, monkeypatch, register_doctor):

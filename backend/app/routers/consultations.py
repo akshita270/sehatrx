@@ -46,7 +46,6 @@ def _to_response(consultation: Consultation) -> ConsultationResponse:
         patient_name=consultation.patient.name,
         patient_age=consultation.patient.age,
         patient_gender=consultation.patient.gender,
-        patient_known_allergies=consultation.patient.known_allergies,
         status=consultation.status,
         transcript_text=consultation.transcript_text,
         created_at=consultation.created_at,
@@ -214,6 +213,7 @@ def draft_rx(
         consultation_id=consultation.id,
         chief_complaint=draft.chiefComplaint,
         diagnosis=draft.diagnosis,
+        allergies=draft.allergies or None,
         diet_advice=draft.dietAdvice or None,
         advice=draft.advice,
         temperature=draft.vitals.temperature or None,
@@ -253,10 +253,6 @@ def draft_rx(
     db.commit()
     db.refresh(prescription)
 
-    new_allergy = draft.newAllergyMentioned.strip()
-    existing_allergies = (consultation.patient.known_allergies or "").lower()
-    prescription.new_allergy_mentioned = new_allergy if new_allergy and new_allergy.lower() not in existing_allergies else None
-
     return prescription
 
 
@@ -279,6 +275,7 @@ def update_prescription(
     prescription = consultation.prescription
     prescription.chief_complaint = payload.chiefComplaint
     prescription.diagnosis = payload.diagnosis
+    prescription.allergies = payload.allergies or None
     prescription.diet_advice = payload.dietAdvice or None
     prescription.advice = payload.advice
     prescription.temperature = payload.vitals.temperature or None
@@ -354,6 +351,7 @@ def approve_consultation(
         translation = translate_to_hindi(
             chief_complaint=prescription.chief_complaint or "",
             diagnosis=prescription.diagnosis or "",
+            allergies=prescription.allergies or "",
             diet_advice=prescription.diet_advice or "",
             advice=prescription.advice or "",
             medicines=medicines,
@@ -361,6 +359,7 @@ def approve_consultation(
         )
         prescription.chief_complaint_hi = translation.chiefComplaintHi
         prescription.diagnosis_hi = translation.diagnosisHi
+        prescription.allergies_hi = translation.allergiesHi
         prescription.diet_advice_hi = translation.dietAdviceHi
         prescription.advice_hi = translation.adviceHi
         for med, med_hi in zip(prescription.medicines, translation.medicines):

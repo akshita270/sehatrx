@@ -45,7 +45,6 @@ def _patient_to_me(patient: Patient) -> MeResponse:
         phone=patient.phone,
         age=patient.age,
         gender=patient.gender,
-        known_allergies=patient.known_allergies,
     )
 
 
@@ -100,7 +99,6 @@ def register_patient(payload: PatientRegisterRequest, db: Session = Depends(get_
         existing.phone = payload.phone or existing.phone
         existing.age = payload.age or existing.age
         existing.gender = payload.gender or existing.gender
-        existing.known_allergies = payload.known_allergies or existing.known_allergies
         db.commit()
         db.refresh(existing)
         token = create_access_token(existing.id, "patient")
@@ -113,7 +111,6 @@ def register_patient(payload: PatientRegisterRequest, db: Session = Depends(get_
         phone=payload.phone,
         age=payload.age,
         gender=payload.gender,
-        known_allergies=payload.known_allergies,
     )
     db.add(patient)
     db.commit()
@@ -240,8 +237,6 @@ def update_me(
         patient.age = payload.age
     if payload.gender is not None:
         patient.gender = payload.gender
-    if payload.known_allergies is not None:
-        patient.known_allergies = payload.known_allergies
     db.commit()
     db.refresh(patient)
     return _patient_to_me(patient)

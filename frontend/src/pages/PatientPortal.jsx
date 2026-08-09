@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AlertTriangle, FileText, FlaskConical, LogOut, Pill, Plus, Stethoscope, Thermometer, Trash2, Type, User, Users, Utensils } from "lucide-react";
+import { FileText, FlaskConical, LogOut, Pill, Plus, Stethoscope, Thermometer, Trash2, Type, User, Users, Utensils } from "lucide-react";
 import { colors, fonts, radius } from "../theme";
 import { api, ApiError } from "../api/client";
 import { useAuth } from "../AuthContext";
@@ -169,46 +169,6 @@ export default function PatientPortal() {
         {isMobile && (
           <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 20 }}>{t("welcome", user?.name)}</div>
         )}
-
-        <div
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            justifyContent: "space-between",
-            gap: 10,
-            background: colors.dangerSoft,
-            border: `1.5px solid ${colors.danger}`,
-            borderRadius: radius.sm,
-            padding: "12px 16px",
-            marginBottom: 24,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-            <AlertTriangle size={18} color={colors.danger} style={{ flexShrink: 0, marginTop: 1 }} />
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 13.5, color: colors.danger }}>{t("knownAllergies")}</div>
-              <div style={{ fontSize: 13, color: colors.danger, marginTop: 2 }}>
-                {user?.known_allergies || t("noAllergiesOnFile")}
-              </div>
-            </div>
-          </div>
-          <button
-            onClick={() => setShowEditProfile(true)}
-            style={{
-              background: "none",
-              border: "none",
-              color: colors.danger,
-              fontSize: 12.5,
-              fontWeight: 600,
-              textDecoration: "underline",
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-              flexShrink: 0,
-            }}
-          >
-            {t("edit")}
-          </button>
-        </div>
 
         <Card style={{ marginBottom: 24 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
@@ -470,31 +430,18 @@ export default function PatientPortal() {
                     )}
                   </div>
 
-                  {detail.patient_known_allergies && (
-                    <div
-                      style={{
-                        background: colors.dangerSoft,
-                        border: `1.5px solid ${colors.danger}`,
-                        borderRadius: radius.sm,
-                        padding: "10px 14px",
-                        marginBottom: 20,
-                      }}
-                    >
-                      <div style={{ fontSize: 11, fontWeight: 700, color: colors.danger, textTransform: "uppercase", letterSpacing: 0.3 }}>
-                        {lang === "hi" ? "ज्ञात एलर्जी" : "Known Allergies"}
-                      </div>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: colors.danger, marginTop: 2 }}>
-                        {detail.patient_known_allergies}
-                      </div>
-                    </div>
-                  )}
-
                   <Section title={lang === "hi" ? "मुख्य शिकायत" : "Chief Complaint"}>
                     {(lang === "hi" ? detail.chief_complaint_hi : detail.chief_complaint) || "—"}
                   </Section>
                   <Section title={lang === "hi" ? "निदान" : "Diagnosis"}>
                     {(lang === "hi" ? detail.diagnosis_hi : detail.diagnosis) || "—"}
                   </Section>
+
+                  {(detail.allergies || detail.allergies_hi) && (
+                    <Section title={lang === "hi" ? "एलर्जी" : "Allergies"}>
+                      {(lang === "hi" ? detail.allergies_hi : detail.allergies) || "—"}
+                    </Section>
+                  )}
 
                   {(detail.temperature || detail.blood_pressure || detail.pulse || detail.weight) && (
                     <div style={{ marginBottom: 20 }}>

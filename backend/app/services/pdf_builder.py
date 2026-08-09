@@ -55,6 +55,7 @@ def build_prescription_pdf(prescription: Prescription, lang: str) -> bytes:
 
     chief_complaint = field(prescription.chief_complaint, prescription.chief_complaint_hi)
     diagnosis = field(prescription.diagnosis, prescription.diagnosis_hi)
+    allergies = field(prescription.allergies, prescription.allergies_hi)
     diet_advice = field(prescription.diet_advice, prescription.diet_advice_hi)
     advice = field(prescription.advice, prescription.advice_hi)
 
@@ -137,21 +138,6 @@ def build_prescription_pdf(prescription: Prescription, lang: str) -> bytes:
             border: 1px solid {COLORS['border']};
         }}
         .footer {{ margin-top: 24px; font-size: 8pt; color: {COLORS['text_soft']}; }}
-        .allergy-box {{
-            background: {COLORS['danger_soft']};
-            border: 1.5px solid {COLORS['danger']};
-            border-radius: 6px;
-            padding: 10px 14px;
-            margin-bottom: 16px;
-        }}
-        .allergy-label {{
-            font-size: 9.5pt;
-            font-weight: 700;
-            color: {COLORS['danger']};
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-        }}
-        .allergy-body {{ font-size: 11pt; font-weight: 700; color: {COLORS['danger']}; margin-top: 2px; }}
     </style>
     </head>
     <body>
@@ -168,15 +154,9 @@ def build_prescription_pdf(prescription: Prescription, lang: str) -> bytes:
         </div>
       </div>
 
-      {f'''
-      <div class="allergy-box">
-        <div class="allergy-label">{'ज्ञात एलर्जी' if hi else 'Known Allergies'}</div>
-        <div class="allergy-body">{_escape(patient.known_allergies)}</div>
-      </div>
-      ''' if patient.known_allergies else ''}
-
       {section('मुख्य शिकायत' if hi else 'Chief Complaint', chief_complaint)}
       {section('निदान' if hi else 'Diagnosis', diagnosis)}
+      {section('एलर्जी' if hi else 'Allergies', allergies)}
       {section('वाइटल्स' if hi else 'Vitals', vitals_html) if vitals_html else ''}
 
       {f'''

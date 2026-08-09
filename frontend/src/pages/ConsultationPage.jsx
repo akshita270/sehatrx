@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   AlertCircle,
-  AlertTriangle,
   ArrowLeft,
   CheckCircle2,
   Mic,
@@ -74,10 +73,7 @@ export default function ConsultationPage() {
   const [patientName, setPatientName] = useState("");
   const [patientAge, setPatientAge] = useState(null);
   const [patientGender, setPatientGender] = useState(null);
-  const [patientKnownAllergies, setPatientKnownAllergies] = useState(null);
   const [patientId, setPatientId] = useState(null);
-  const [newAllergyMentioned, setNewAllergyMentioned] = useState(null);
-  const [savingAllergy, setSavingAllergy] = useState(false);
   const [consultationDate, setConsultationDate] = useState(null);
   const [error, setError] = useState("");
   const [readOnly, setReadOnly] = useState(false);
@@ -103,6 +99,7 @@ export default function ConsultationPage() {
   const [rx, setRx] = useState({
     chiefComplaint: "",
     diagnosis: "",
+    allergies: "",
     vitals: emptyVitals(),
     medicines: [emptyMedicine()],
     tests: [],
@@ -133,7 +130,6 @@ export default function ConsultationPage() {
       setPatientName(consultation.patient_name);
       setPatientAge(consultation.patient_age);
       setPatientGender(consultation.patient_gender);
-      setPatientKnownAllergies(consultation.patient_known_allergies);
       setPatientId(consultation.patient_id);
       setConsultationDate(consultation.created_at);
       if (consultation.status === "sent") {
@@ -162,10 +158,12 @@ export default function ConsultationPage() {
     return {
       chiefComplaint: prescription.chief_complaint || "",
       diagnosis: prescription.diagnosis || "",
+      allergies: prescription.allergies || "",
       dietAdvice: prescription.diet_advice || "",
       advice: prescription.advice || "",
       chiefComplaintHi: prescription.chief_complaint_hi || "",
       diagnosisHi: prescription.diagnosis_hi || "",
+      allergiesHi: prescription.allergies_hi || "",
       dietAdviceHi: prescription.diet_advice_hi || "",
       adviceHi: prescription.advice_hi || "",
       vitals: {
@@ -310,28 +308,10 @@ export default function ConsultationPage() {
       await api.patch(`/consultations/${id}/transcript`, { transcript_text: transcript });
       const draft = await api.post(`/consultations/${id}/draft-rx`, {});
       setRx(mapPrescriptionToForm(draft));
-      setNewAllergyMentioned(draft.new_allergy_mentioned || null);
       setStage("prescription");
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Couldn't generate a prescription draft. Please try again.");
       setStage("transcript");
-    }
-  }
-
-  async function handleSaveMentionedAllergy() {
-    if (!patientId || !newAllergyMentioned) return;
-    setSavingAllergy(true);
-    try {
-      const updatedAllergies = patientKnownAllergies
-        ? `${patientKnownAllergies}, ${newAllergyMentioned}`
-        : newAllergyMentioned;
-      await api.patch(`/patients/${patientId}/allergies`, { known_allergies: updatedAllergies });
-      setPatientKnownAllergies(updatedAllergies);
-      setNewAllergyMentioned(null);
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Couldn't save this allergy. Please try again.");
-    } finally {
-      setSavingAllergy(false);
     }
   }
 
@@ -409,29 +389,6 @@ export default function ConsultationPage() {
       </header>
 
       <main style={{ padding: isMobile ? "24px 20px" : "36px 40px", maxWidth: 720, margin: "0 auto" }}>
-        {patientKnownAllergies && stage === "prescription" && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              gap: 10,
-              background: colors.dangerSoft,
-              border: `1.5px solid ${colors.danger}`,
-              borderRadius: radius.sm,
-              padding: "12px 16px",
-              marginBottom: 24,
-            }}
-          >
-            <AlertTriangle size={18} color={colors.danger} style={{ flexShrink: 0, marginTop: 1 }} />
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 13.5, color: colors.danger }}>
-                Known Allergies — {patientName}
-              </div>
-              <div style={{ fontSize: 13, color: colors.danger, marginTop: 2 }}>{patientKnownAllergies}</div>
-            </div>
-          </div>
-        )}
-
         {stage !== "sent" && <PatientHistoryPanel patientId={patientId} />}
 
         {stage !== "sent" && (
@@ -593,44 +550,6 @@ export default function ConsultationPage() {
               Prescription Draft
             </h2>
 
-            {newAllergyMentioned && (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  justifyContent: "space-between",
-                  gap: 10,
-                  flexWrap: "wrap",
-                  background: colors.dangerSoft,
-                  border: `1.5px solid ${colors.danger}`,
-                  borderRadius: radius.sm,
-                  padding: "12px 16px",
-                  marginBottom: 18,
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                  <AlertTriangle size={18} color={colors.danger} style={{ flexShrink: 0, marginTop: 1 }} />
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 13.5, color: colors.danger }}>
-                      Possible new allergy mentioned
-                    </div>
-                    <div style={{ fontSize: 13, color: colors.danger, marginTop: 2 }}>
-                      The patient mentioned <strong>{newAllergyMentioned}</strong> during this consultation. Save it
-                      to their profile so future prescriptions warn about it too?
-                    </div>
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-                  <Button size="sm" onClick={handleSaveMentionedAllergy} disabled={savingAllergy}>
-                    {savingAllergy ? "Saving…" : "Save to Profile"}
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => setNewAllergyMentioned(null)}>
-                    Dismiss
-                  </Button>
-                </div>
-              </div>
-            )}
-
             <div style={{ display: "flex", flexDirection: "column", gap: 18, marginTop: 8 }}>
               <Field
                 as="textarea"
@@ -643,6 +562,12 @@ export default function ConsultationPage() {
                 label="Diagnosis"
                 value={rx.diagnosis}
                 onChange={(e) => setRx({ ...rx, diagnosis: e.target.value })}
+              />
+              <Field
+                label="Allergies"
+                placeholder="e.g. Penicillin, Sulfa drugs (rash) - leave blank if none mentioned"
+                value={rx.allergies}
+                onChange={(e) => setRx({ ...rx, allergies: e.target.value })}
               />
 
               <div>
@@ -926,23 +851,6 @@ export default function ConsultationPage() {
               </div>
             </div>
 
-            {patientKnownAllergies && (
-              <div
-                style={{
-                  background: colors.dangerSoft,
-                  border: `1.5px solid ${colors.danger}`,
-                  borderRadius: radius.sm,
-                  padding: "10px 14px",
-                  marginBottom: 18,
-                }}
-              >
-                <div style={{ fontSize: 11, fontWeight: 700, color: colors.danger, textTransform: "uppercase", letterSpacing: 0.3 }}>
-                  {lang === "hi" ? "ज्ञात एलर्जी" : "Known Allergies"}
-                </div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: colors.danger, marginTop: 2 }}>{patientKnownAllergies}</div>
-              </div>
-            )}
-
             <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
               <ReadOnlySection label={lang === "hi" ? "मुख्य शिकायत" : "Chief Complaint"}>
                 {(lang === "hi" ? rx.chiefComplaintHi : rx.chiefComplaint) || "—"}
@@ -950,6 +858,12 @@ export default function ConsultationPage() {
               <ReadOnlySection label={lang === "hi" ? "निदान" : "Diagnosis"}>
                 {(lang === "hi" ? rx.diagnosisHi : rx.diagnosis) || "—"}
               </ReadOnlySection>
+
+              {(rx.allergies || rx.allergiesHi) && (
+                <ReadOnlySection label={lang === "hi" ? "एलर्जी" : "Allergies"}>
+                  {(lang === "hi" ? rx.allergiesHi : rx.allergies) || "—"}
+                </ReadOnlySection>
+              )}
 
               {(rx.vitals.temperature || rx.vitals.bloodPressure || rx.vitals.pulse || rx.vitals.weight) && (
                 <div>

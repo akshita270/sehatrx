@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AlertTriangle, Search, User, UserPlus, X } from "lucide-react";
+import { Search, User, UserPlus, X } from "lucide-react";
 import { colors, fonts, radius, shadow } from "../theme";
 import { api } from "../api/client";
 import Button from "./Button";
@@ -13,7 +13,7 @@ export default function PatientPickerModal({ onClose, onStart }) {
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
 
-  const [form, setForm] = useState({ name: "", age: "", gender: "", phone: "", email: "", known_allergies: "" });
+  const [form, setForm] = useState({ name: "", age: "", gender: "", phone: "", email: "" });
 
   useEffect(() => {
     if (tab !== "existing") return;
@@ -51,7 +51,6 @@ export default function PatientPickerModal({ onClose, onStart }) {
         gender: form.gender || null,
         phone: form.phone || null,
         email: form.email || null,
-        known_allergies: form.known_allergies || null,
       });
       const consultation = await api.post("/consultations", { patient_id: patient.id });
       onStart(consultation);
@@ -201,22 +200,6 @@ export default function PatientPickerModal({ onClose, onStart }) {
                       <div style={{ fontSize: 12.5, color: colors.textSoft }}>
                         {[p.age && `${p.age} yrs`, p.gender, p.phone].filter(Boolean).join(" · ")}
                       </div>
-                      {p.known_allergies && (
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 4,
-                            fontSize: 11.5,
-                            fontWeight: 600,
-                            color: colors.danger,
-                            marginTop: 3,
-                          }}
-                        >
-                          <AlertTriangle size={11} />
-                          Allergic: {p.known_allergies}
-                        </div>
-                      )}
                     </div>
                   </button>
                 ))}
@@ -252,12 +235,6 @@ export default function PatientPickerModal({ onClose, onStart }) {
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
-              />
-              <Field
-                label="Known Allergies (optional)"
-                placeholder="e.g. Penicillin, Sulfa drugs, Peanuts"
-                value={form.known_allergies}
-                onChange={(e) => setForm({ ...form, known_allergies: e.target.value })}
               />
               <Button type="submit" disabled={starting || !form.name} fullWidth>
                 {starting ? "Starting…" : "Add Patient & Start Consultation"}

@@ -5,7 +5,6 @@ from app.auth import get_current_doctor
 from app.database import get_db
 from app.models import Consultation, ConsultationStatus, Doctor, Patient
 from app.schemas import (
-    PatientAllergyUpdateRequest,
     PatientCreateRequest,
     PatientHistoryItem,
     PatientHistoryMedicine,
@@ -47,7 +46,6 @@ def create_patient(
         existing.gender = payload.gender or existing.gender
         existing.phone = payload.phone or existing.phone
         existing.email = payload.email or existing.email
-        existing.known_allergies = payload.known_allergies or existing.known_allergies
         db.commit()
         db.refresh(existing)
         return existing
@@ -58,26 +56,8 @@ def create_patient(
         gender=payload.gender,
         phone=payload.phone,
         email=payload.email,
-        known_allergies=payload.known_allergies,
     )
     db.add(patient)
-    db.commit()
-    db.refresh(patient)
-    return patient
-
-
-@router.patch("/patients/{patient_id}/allergies", response_model=PatientResponse)
-def update_patient_allergies(
-    patient_id: str,
-    payload: PatientAllergyUpdateRequest,
-    db: Session = Depends(get_db),
-    _doctor: Doctor = Depends(get_current_doctor),
-):
-    patient = db.query(Patient).filter(Patient.id == patient_id).first()
-    if not patient:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
-
-    patient.known_allergies = payload.known_allergies
     db.commit()
     db.refresh(patient)
     return patient

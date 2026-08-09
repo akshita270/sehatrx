@@ -20,7 +20,6 @@ export default function EditProfileModal({ onClose }) {
     clinic: user?.clinic || "",
     age: user?.age ?? "",
     gender: user?.gender || "",
-    known_allergies: user?.known_allergies || "",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -39,7 +38,6 @@ export default function EditProfileModal({ onClose }) {
             phone: form.phone,
             age: form.age ? Number(form.age) : null,
             gender: form.gender || null,
-            known_allergies: form.known_allergies || null,
           };
       const updated = await api.patch("/auth/me", payload);
       updateUser(updated);
@@ -158,14 +156,8 @@ export default function EditProfileModal({ onClose }) {
                   <option value="Other">Other</option>
                 </Field>
               </div>
-              <Field
-                label="Known Allergies"
-                placeholder="e.g. Penicillin, Sulfa drugs, Peanuts"
-                value={form.known_allergies}
-                onChange={(e) => setForm({ ...form, known_allergies: e.target.value })}
-              />
               <p style={{ fontSize: 12, color: colors.textFaint, margin: 0 }}>
-                Email can't be changed here. Your doctor will see your known allergies before prescribing.
+                Email can't be changed here.
               </p>
             </>
           )}

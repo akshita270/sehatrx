@@ -20,10 +20,12 @@ def _to_detail(prescription: Prescription) -> PrescriptionDetailResponse:
         id=prescription.id,
         chief_complaint=prescription.chief_complaint,
         diagnosis=prescription.diagnosis,
+        allergies=prescription.allergies,
         diet_advice=prescription.diet_advice,
         advice=prescription.advice,
         chief_complaint_hi=prescription.chief_complaint_hi,
         diagnosis_hi=prescription.diagnosis_hi,
+        allergies_hi=prescription.allergies_hi,
         diet_advice_hi=prescription.diet_advice_hi,
         advice_hi=prescription.advice_hi,
         temperature=prescription.temperature,
@@ -40,7 +42,6 @@ def _to_detail(prescription: Prescription) -> PrescriptionDetailResponse:
         patient_name=patient.name,
         patient_age=patient.age,
         patient_gender=patient.gender,
-        patient_known_allergies=patient.known_allergies,
     )
 
 

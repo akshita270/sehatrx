@@ -28,7 +28,6 @@ class PatientRegisterRequest(BaseModel):
     password: str = Field(min_length=6)
     age: int | None = None
     gender: str | None = None
-    known_allergies: str | None = None
 
     @model_validator(mode="after")
     def require_email_or_phone(self) -> "PatientRegisterRequest":
@@ -68,7 +67,6 @@ class MeResponse(BaseModel):
     phone: str | None = None
     age: int | None = None
     gender: str | None = None
-    known_allergies: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -80,7 +78,6 @@ class ProfileUpdateRequest(BaseModel):
     clinic: str | None = None
     age: int | None = None
     gender: str | None = None
-    known_allergies: str | None = None
 
 
 # ---------- Patients ----------
@@ -92,11 +89,6 @@ class PatientCreateRequest(BaseModel):
     gender: str | None = None
     phone: str | None = None
     email: EmailStr | None = None
-    known_allergies: str | None = None
-
-
-class PatientAllergyUpdateRequest(BaseModel):
-    known_allergies: str
 
 
 class PatientResponse(BaseModel):
@@ -106,7 +98,6 @@ class PatientResponse(BaseModel):
     phone: str | None = None
     age: int | None = None
     gender: str | None = None
-    known_allergies: str | None = None
 
 
 class PatientHistoryMedicine(BaseModel):
@@ -214,12 +205,12 @@ class VitalsItem(BaseModel):
 class PrescriptionDraft(BaseModel):
     chiefComplaint: str
     diagnosis: str
+    allergies: str = ""
     vitals: VitalsItem
     medicines: list[MedicineItem]
     tests: list[TestItem]
     dietAdvice: str
     advice: str
-    newAllergyMentioned: str = ""
 
 
 class MedicineTranslation(BaseModel):
@@ -236,6 +227,7 @@ class TestTranslation(BaseModel):
 class PrescriptionTranslation(BaseModel):
     chiefComplaintHi: str
     diagnosisHi: str
+    allergiesHi: str
     medicines: list[MedicineTranslation]
     tests: list[TestTranslation]
     dietAdviceHi: str
@@ -248,6 +240,7 @@ class PrescriptionTranslation(BaseModel):
 class PrescriptionUpdateRequest(BaseModel):
     chiefComplaint: str
     diagnosis: str
+    allergies: str = ""
     vitals: VitalsItem = VitalsItem()
     medicines: list[MedicineItem]
     tests: list[TestItem] = []
@@ -259,10 +252,12 @@ class PrescriptionResponse(BaseModel):
     id: str
     chief_complaint: str | None = None
     diagnosis: str | None = None
+    allergies: str | None = None
     diet_advice: str | None = None
     advice: str | None = None
     chief_complaint_hi: str | None = None
     diagnosis_hi: str | None = None
+    allergies_hi: str | None = None
     diet_advice_hi: str | None = None
     advice_hi: str | None = None
     temperature: str | None = None
@@ -272,7 +267,6 @@ class PrescriptionResponse(BaseModel):
     medicines: list[MedicineResponse] = []
     tests: list[TestResponse] = []
     created_at: datetime
-    new_allergy_mentioned: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -285,7 +279,6 @@ class PrescriptionDetailResponse(PrescriptionResponse):
     patient_name: str
     patient_age: int | None = None
     patient_gender: str | None = None
-    patient_known_allergies: str | None = None
 
 
 # ---------- Consultations ----------
@@ -302,7 +295,6 @@ class ConsultationResponse(BaseModel):
     patient_name: str
     patient_age: int | None = None
     patient_gender: str | None = None
-    patient_known_allergies: str | None = None
     status: ConsultationStatus
     transcript_text: str | None = None
     created_at: datetime

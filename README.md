@@ -50,16 +50,15 @@ out loud if needed, and impossible to quietly alter after the fact.
 **For doctors**
 - Record a consultation and get a Whisper transcript, editable before drafting
 - GPT-4o-mini drafts a full structured prescription: chief complaint, diagnosis,
-  vitals, medicines (dose/frequency/duration/timing), tests, diet advice, general
-  advice — doctor reviews and edits everything before it can be sent
+  allergies, vitals, medicines (dose/frequency/duration/timing), tests, diet advice,
+  general advice — doctor reviews and edits everything before it can be sent
 - Once sent, a prescription is **immutable** — enforced server-side, not just hidden
   in the UI (see [Engineering Notes](#engineering-notes--things-that-actually-broke))
 - AI flags medicine durations it *inferred* rather than ones the doctor stated
   explicitly, so nothing gets rubber-stamped without a second look
 - AI listens for allergy or adverse-drug-reaction mentions anywhere in the
-  conversation — even off-topic — and prompts the doctor to save new ones to the
-  patient's profile instead of letting them get lost in a one-off transcript
-- Known-allergy warning banner shown before prescribing, every time
+  conversation — even off-topic — and extracts them straight into the draft, printed
+  on the prescription itself so a pharmacist sees it too
 - Collapsible "Past Visits" panel while drafting — every prior sent prescription for
   this patient, across every doctor who's seen them, so a second visit isn't a blank
   slate: what was tried before, and whether it's worth stepping up treatment
@@ -76,7 +75,6 @@ out loud if needed, and impossible to quietly alter after the fact.
   who can't or don't want to read
 - Larger-text mode for older or low-vision patients
 - Grant read-only access to a family member ("Family Access") without sharing a login
-- Editable known-allergies field patients can keep current themselves
 
 **For family / caregivers**
 - Claim access to a linked patient's prescriptions using the same login-claim pattern
@@ -152,13 +150,21 @@ app with realistic Hindi/Hinglish test conversations, not from a spec:
   "AI inferred this" marker on inferred durations so the doctor knows exactly what to
   double-check before approving — instead of silently trusting either extreme.
 
-- **"None on file" and "nobody asked" looked identical.** The known-allergies field
-  was only ever populated by a human typing it into a form. If a patient mentioned an
-  allergy mid-conversation and the doctor forgot to go update the profile afterward,
-  the app had no way to know the difference between "confirmed no allergies" and
-  "we just never asked." The fix has the AI listen for allergy mentions during
-  drafting and surface a one-click "save to profile" prompt at the moment it's
-  cheapest to act on — while the doctor is already looking at the draft.
+- **Allergies lived in three different places and agreed with none of them.**
+  Originally a persistent `patient.known_allergies` field: editable by the patient in
+  their profile, editable by the doctor via a "save to profile" prompt when the AI
+  caught a mention mid-consultation, and echoed onto every prescription as a red
+  warning box. In practice this was confusing rather than reassuring — a patient
+  editing their own medical record with no clinical review, a doctor seeing a
+  cross-visit warning banner that duplicated what was about to print anyway, and a
+  banner from a completely different concept (patient self-management) sitting next
+  to the AI's own consultation-mention detector. The fix was a real simplification,
+  not just a UI cleanup: allergies are no longer a standing patient-profile field at
+  all. They're extracted by the AI from *this* consultation's transcript, shown as an
+  ordinary editable field in the draft alongside Chief Complaint and Diagnosis, and
+  printed on *this* prescription the same way — no separate banner, no self-edit
+  flow, no cross-visit carry-over. One source of truth per visit, matching how every
+  other clinical field on the prescription already worked.
 
 - **Knowing a patient's email was enough to steal their account** — and, worse,
   Indian clinics routinely see elderly patients with no email at all, which the app
@@ -309,7 +315,7 @@ All endpoints are JWT-authenticated except `/auth/*`. A non-exhaustive map:
 | Area | Endpoints |
 |---|---|
 | Auth | `POST /auth/register/{doctor,patient,caregiver}`, `POST /auth/login`, `GET /auth/me`, `PATCH /auth/me` |
-| Patients | `GET/POST /patients`, `PATCH /patients/{id}/allergies` |
+| Patients | `GET/POST /patients` |
 | Consultations | `POST /consultations`, `PATCH /consultations/{id}/transcript`, `POST /consultations/{id}/transcribe`, `POST /consultations/{id}/draft-rx`, `PATCH /consultations/{id}/prescription`, `POST /consultations/{id}/approve`, `DELETE /consultations/{id}` |
 | Prescriptions (patient) | `GET /patients/me/prescriptions`, `GET /patients/me/prescriptions/{id}`, `GET /patients/me/prescriptions/{id}/audio` |
 | Caregivers | `GET/POST /patients/me/caregivers`, `DELETE /patients/me/caregivers/{id}`, `GET /caregiver/patients`, `GET /caregiver/patients/{id}/prescriptions` |
