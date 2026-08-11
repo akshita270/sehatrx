@@ -9,6 +9,8 @@
 
 **[Read the write-up →](https://medium.com/@jakshita770/i-built-sehatrx-an-ai-prescription-app-for-indian-clinics-the-ai-was-the-easy-part-c097417b0d35)** the two production bugs that actually shaped this project
 
+**[View the pitch deck →](docs/SehatRx-Deck.pdf)** a 10-slide overview, viewable right in the browser
+
 SehatRx is an AI-assisted consultation and prescription workflow built for Indian
 clinics. A doctor records a consultation in Hindi, English, or Hinglish; the app
 transcribes it with Whisper, drafts a structured prescription with GPT-4o, and lets
