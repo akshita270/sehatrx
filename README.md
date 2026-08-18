@@ -218,6 +218,23 @@ app with realistic Hindi/Hinglish test conversations, not from a spec:
   IP only if there's no valid token. Verified two different users' tokens produce
   different keys even when the request comes from the identical IP.
 
+- **A patient could see their own prescription before the doctor ever reviewed
+  it.** The whole app is built around "AI drafts it, doctor reviews and approves,
+  *then* the patient sees it" - but the query behind `GET /patients/me/prescriptions`
+  only checked that the prescription belonged to that patient, never that its
+  consultation had actually been sent. A `Prescription` row exists from the moment
+  the doctor clicks "Generate Draft," well before approval, so simply refreshing the
+  patient portal at the wrong moment could surface an unreviewed AI draft. Caught
+  during a self-review pass, not by a test - there wasn't one. Fixed by centralizing
+  every patient/caregiver-facing prescription query into one
+  `services/prescription_access.py` module that filters on `status == sent`
+  everywhere, and added a regression test that drafts a prescription, confirms the
+  patient can't see it (list, detail, audio, or PDF), then confirms they can the
+  moment it's approved. That same module also deleted about 230 lines that had been
+  duplicated near-verbatim between the patient and caregiver routers - duplication
+  that had already caused one near-miss (the allergies migration briefly updated one
+  copy and not the other).
+
 ## Getting Started
 
 ### Prerequisites
