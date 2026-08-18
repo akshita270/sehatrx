@@ -4,11 +4,16 @@ from sqlalchemy.orm import Session
 from app.auth import get_current_caregiver, get_current_patient
 from app.database import get_db
 from app.limiter import limiter
-from app.models import Caregiver, CaregiverPatientLink, Patient, Prescription, PrescriptionAudio
+from app.models import Caregiver, CaregiverPatientLink, Patient
 from app.schemas import CaregiverLinkRequest, CaregiverPatientResponse, CaregiverResponse, PrescriptionDetailResponse
-from app.services.openai_client import SpeechSynthesisError, synthesize_speech
 from app.services.pdf_builder import build_prescription_pdf
-from app.services.speech_script import build_speech_script
+from app.services.prescription_access import (
+    ensure_lang_available,
+    get_or_create_audio,
+    get_sent_prescription_for_patient,
+    list_sent_prescriptions_for_patient,
+    to_prescription_detail,
+)
 
 router = APIRouter(tags=["caregivers"])
 
@@ -121,38 +126,6 @@ def list_linked_patients(db: Session = Depends(get_db), caregiver: Caregiver = D
     ]
 
 
-def _to_detail(prescription: Prescription) -> PrescriptionDetailResponse:
-    doctor = prescription.consultation.doctor
-    patient = prescription.consultation.patient
-    return PrescriptionDetailResponse(
-        id=prescription.id,
-        chief_complaint=prescription.chief_complaint,
-        diagnosis=prescription.diagnosis,
-        allergies=prescription.allergies,
-        diet_advice=prescription.diet_advice,
-        advice=prescription.advice,
-        chief_complaint_hi=prescription.chief_complaint_hi,
-        diagnosis_hi=prescription.diagnosis_hi,
-        allergies_hi=prescription.allergies_hi,
-        diet_advice_hi=prescription.diet_advice_hi,
-        advice_hi=prescription.advice_hi,
-        temperature=prescription.temperature,
-        blood_pressure=prescription.blood_pressure,
-        pulse=prescription.pulse,
-        weight=prescription.weight,
-        medicines=prescription.medicines,
-        tests=prescription.tests,
-        created_at=prescription.created_at,
-        doctor_name=doctor.name,
-        doctor_specialization=doctor.specialization,
-        doctor_clinic=doctor.clinic,
-        doctor_reg_no=doctor.reg_no,
-        patient_name=patient.name,
-        patient_age=patient.age,
-        patient_gender=patient.gender,
-    )
-
-
 @router.get("/caregiver/patients/{patient_id}/prescriptions", response_model=list[PrescriptionDetailResponse])
 def list_patient_prescriptions_for_caregiver(
     patient_id: str,
@@ -160,14 +133,8 @@ def list_patient_prescriptions_for_caregiver(
     caregiver: Caregiver = Depends(get_current_caregiver),
 ):
     patient = _get_linked_patient(patient_id, caregiver, db)
-    prescriptions = (
-        db.query(Prescription)
-        .join(Prescription.consultation)
-        .filter(Prescription.consultation.has(patient_id=patient.id))
-        .order_by(Prescription.created_at.desc())
-        .all()
-    )
-    return [_to_detail(p) for p in prescriptions]
+    prescriptions = list_sent_prescriptions_for_patient(db, patient.id)
+    return [to_prescription_detail(p) for p in prescriptions]
 
 
 @router.get(
@@ -180,11 +147,9 @@ def patient_prescription_detail_for_caregiver(
     db: Session = Depends(get_db),
     caregiver: Caregiver = Depends(get_current_caregiver),
 ):
-    _get_linked_patient(patient_id, caregiver, db)
-    prescription = db.get(Prescription, prescription_id)
-    if not prescription or prescription.consultation.patient_id != patient_id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prescription not found")
-    return _to_detail(prescription)
+    patient = _get_linked_patient(patient_id, caregiver, db)
+    prescription = get_sent_prescription_for_patient(db, prescription_id, patient.id)
+    return to_prescription_detail(prescription)
 
 
 @router.get("/caregiver/patients/{patient_id}/prescriptions/{prescription_id}/audio")
@@ -197,33 +162,11 @@ def patient_prescription_audio_for_caregiver(
     db: Session = Depends(get_db),
     caregiver: Caregiver = Depends(get_current_caregiver),
 ):
-    if lang not in ("en", "hi"):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="lang must be 'en' or 'hi'")
-
-    _get_linked_patient(patient_id, caregiver, db)
-    prescription = db.get(Prescription, prescription_id)
-    if not prescription or prescription.consultation.patient_id != patient_id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prescription not found")
-    if lang == "hi" and not prescription.chief_complaint_hi:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Hindi audio isn't available for this prescription")
-
-    cached = (
-        db.query(PrescriptionAudio)
-        .filter(PrescriptionAudio.prescription_id == prescription.id, PrescriptionAudio.lang == lang)
-        .first()
-    )
-    if not cached:
-        script = build_speech_script(prescription, lang)
-        try:
-            audio_bytes = synthesize_speech(script)
-        except SpeechSynthesisError as exc:
-            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Couldn't generate audio: {exc}")
-        cached = PrescriptionAudio(prescription_id=prescription.id, lang=lang, audio_data=audio_bytes)
-        db.add(cached)
-        db.commit()
-        db.refresh(cached)
-
-    return Response(content=cached.audio_data, media_type="audio/mpeg")
+    patient = _get_linked_patient(patient_id, caregiver, db)
+    prescription = get_sent_prescription_for_patient(db, prescription_id, patient.id)
+    ensure_lang_available(prescription, lang)
+    audio_bytes = get_or_create_audio(db, prescription, lang)
+    return Response(content=audio_bytes, media_type="audio/mpeg")
 
 
 @router.get("/caregiver/patients/{patient_id}/prescriptions/{prescription_id}/pdf")
@@ -234,16 +177,9 @@ def patient_prescription_pdf_for_caregiver(
     db: Session = Depends(get_db),
     caregiver: Caregiver = Depends(get_current_caregiver),
 ):
-    if lang not in ("en", "hi"):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="lang must be 'en' or 'hi'")
-
-    _get_linked_patient(patient_id, caregiver, db)
-    prescription = db.get(Prescription, prescription_id)
-    if not prescription or prescription.consultation.patient_id != patient_id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prescription not found")
-    if lang == "hi" and not prescription.chief_complaint_hi:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Hindi version isn't available for this prescription")
-
+    patient = _get_linked_patient(patient_id, caregiver, db)
+    prescription = get_sent_prescription_for_patient(db, prescription_id, patient.id)
+    ensure_lang_available(prescription, lang)
     pdf_bytes = build_prescription_pdf(prescription, lang)
     filename = f"prescription-{prescription.created_at.strftime('%Y-%m-%d')}.pdf"
     return Response(

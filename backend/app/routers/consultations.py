@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.auth import get_current_doctor
 from app.database import get_db
@@ -61,10 +61,51 @@ def _get_owned_consultation(consultation_id: str, doctor: Doctor, db: Session) -
     return consultation
 
 
+def _replace_medicines_and_tests(
+    db: Session,
+    prescription: Prescription,
+    medicines: list[MedicineItem],
+    tests: list[TestItem],
+) -> None:
+    """Used by both draft_rx (first draft) and update_prescription (doctor's edits) -
+    both take the same MedicineItem/TestItem lists and rebuild the child rows the same way."""
+    for med in list(prescription.medicines):
+        db.delete(med)
+    for test in list(prescription.tests):
+        db.delete(test)
+    db.flush()
+
+    for idx, med in enumerate(medicines):
+        db.add(
+            Medicine(
+                prescription_id=prescription.id,
+                name=med.name,
+                dose=med.dose,
+                frequency=med.freq,
+                duration=med.duration,
+                duration_inferred=med.durationInferred,
+                timing=med.timing or None,
+                timing_when=med.timingWhen or None,
+                sort_order=idx,
+            )
+        )
+
+    for idx, test in enumerate(tests):
+        db.add(
+            Test(
+                prescription_id=prescription.id,
+                name=test.name,
+                instructions=test.instructions or None,
+                sort_order=idx,
+            )
+        )
+
+
 @router.get("", response_model=list[ConsultationResponse])
 def list_consultations(db: Session = Depends(get_db), doctor: Doctor = Depends(get_current_doctor)):
     consultations = (
         db.query(Consultation)
+        .options(joinedload(Consultation.patient), joinedload(Consultation.prescription))
         .filter(Consultation.doctor_id == doctor.id)
         .order_by(Consultation.created_at.desc())
         .all()
@@ -224,30 +265,7 @@ def draft_rx(
     db.add(prescription)
     db.flush()
 
-    for idx, med in enumerate(draft.medicines):
-        db.add(
-            Medicine(
-                prescription_id=prescription.id,
-                name=med.name,
-                dose=med.dose,
-                frequency=med.freq,
-                duration=med.duration,
-                duration_inferred=med.durationInferred,
-                timing=med.timing or None,
-                timing_when=med.timingWhen or None,
-                sort_order=idx,
-            )
-        )
-
-    for idx, test in enumerate(draft.tests):
-        db.add(
-            Test(
-                prescription_id=prescription.id,
-                name=test.name,
-                instructions=test.instructions or None,
-                sort_order=idx,
-            )
-        )
+    _replace_medicines_and_tests(db, prescription, draft.medicines, draft.tests)
 
     consultation.status = ConsultationStatus.drafted
     db.commit()
@@ -283,36 +301,7 @@ def update_prescription(
     prescription.pulse = payload.vitals.pulse or None
     prescription.weight = payload.vitals.weight or None
 
-    for med in list(prescription.medicines):
-        db.delete(med)
-    for test in list(prescription.tests):
-        db.delete(test)
-    db.flush()
-
-    for idx, med in enumerate(payload.medicines):
-        db.add(
-            Medicine(
-                prescription_id=prescription.id,
-                name=med.name,
-                dose=med.dose,
-                frequency=med.freq,
-                duration=med.duration,
-                duration_inferred=med.durationInferred,
-                timing=med.timing or None,
-                timing_when=med.timingWhen or None,
-                sort_order=idx,
-            )
-        )
-
-    for idx, test in enumerate(payload.tests):
-        db.add(
-            Test(
-                prescription_id=prescription.id,
-                name=test.name,
-                instructions=test.instructions or None,
-                sort_order=idx,
-            )
-        )
+    _replace_medicines_and_tests(db, prescription, payload.medicines, payload.tests)
 
     db.commit()
     db.refresh(prescription)

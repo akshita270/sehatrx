@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.auth import get_current_doctor
 from app.database import get_db
-from app.models import Consultation, ConsultationStatus, Doctor, Patient
+from app.models import Consultation, ConsultationStatus, Doctor, Patient, Prescription
 from app.schemas import (
     PatientCreateRequest,
     PatientHistoryItem,
@@ -76,6 +76,10 @@ def patient_history(
 
     consultations = (
         db.query(Consultation)
+        .options(
+            joinedload(Consultation.doctor),
+            joinedload(Consultation.prescription).selectinload(Prescription.medicines),
+        )
         .filter(
             Consultation.patient_id == patient_id,
             Consultation.status == ConsultationStatus.sent,

@@ -23,7 +23,7 @@ import Card from "../components/Card";
 import Badge from "../components/Badge";
 import Button from "../components/Button";
 import Field from "../components/Field";
-import Waveform from "../components/Waveform";
+import LiveWaveform from "../components/LiveWaveform";
 import LanguageToggle from "../components/LanguageToggle";
 import PatientHistoryPanel from "../components/PatientHistoryPanel";
 import { findAllergyConflicts } from "../utils/allergyCheck";
@@ -84,15 +84,11 @@ export default function ConsultationPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [audioBlob, setAudioBlob] = useState(null);
-  const [audioLevels, setAudioLevels] = useState([]);
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
   const streamRef = useRef(null);
   const timerRef = useRef(null);
   const elapsedRef = useRef(0);
-  const audioContextRef = useRef(null);
-  const analyserRef = useRef(null);
-  const levelsAnimationRef = useRef(null);
 
   // Transcript state
   const [transcript, setTranscript] = useState("");
@@ -114,7 +110,6 @@ export default function ConsultationPage() {
     loadConsultation();
     return () => {
       clearInterval(timerRef.current);
-      stopAudioLevelAnalysis();
       streamRef.current?.getTracks().forEach((t) => t.stop());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -197,49 +192,6 @@ export default function ConsultationPage() {
     };
   }
 
-  function startAudioLevelAnalysis(stream) {
-    try {
-      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      const audioContext = new AudioContextClass();
-      audioContext.resume?.();
-      const source = audioContext.createMediaStreamSource(stream);
-      const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 64;
-      analyser.smoothingTimeConstant = 0.6;
-      source.connect(analyser);
-      audioContextRef.current = audioContext;
-      analyserRef.current = analyser;
-
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
-      const barCount = 24;
-      const step = Math.max(1, Math.floor(dataArray.length / barCount));
-
-      const tick = () => {
-        analyser.getByteFrequencyData(dataArray);
-        const levels = [];
-        for (let i = 0; i < barCount; i++) {
-          levels.push(dataArray[i * step] / 255);
-        }
-        setAudioLevels(levels);
-        levelsAnimationRef.current = requestAnimationFrame(tick);
-      };
-      tick();
-    } catch {
-      // Live waveform is a nice-to-have; recording itself doesn't depend on it.
-    }
-  }
-
-  function stopAudioLevelAnalysis() {
-    if (levelsAnimationRef.current) cancelAnimationFrame(levelsAnimationRef.current);
-    levelsAnimationRef.current = null;
-    analyserRef.current = null;
-    if (audioContextRef.current) {
-      audioContextRef.current.close().catch(() => {});
-      audioContextRef.current = null;
-    }
-    setAudioLevels([]);
-  }
-
   async function startRecording() {
     setError("");
     try {
@@ -261,7 +213,6 @@ export default function ConsultationPage() {
       };
       mediaRecorderRef.current = recorder;
       recorder.start();
-      startAudioLevelAnalysis(stream);
       setIsRecording(true);
       elapsedRef.current = 0;
       setElapsed(0);
@@ -279,7 +230,6 @@ export default function ConsultationPage() {
 
   function stopRecording() {
     clearInterval(timerRef.current);
-    stopAudioLevelAnalysis();
     setIsRecording(false);
     mediaRecorderRef.current?.stop();
   }
@@ -475,7 +425,7 @@ export default function ConsultationPage() {
                 : "Tap the button to start recording the consultation."}
             </p>
 
-            <Waveform active={isRecording} height={56} levels={audioLevels} />
+            <LiveWaveform stream={streamRef.current} active={isRecording} height={56} />
 
             <div
               style={{

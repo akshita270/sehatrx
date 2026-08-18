@@ -296,6 +296,63 @@ def test_patient_can_download_prescription_pdf(client, monkeypatch, register_doc
     assert pdf_hi.content[:4] == b"%PDF"
 
 
+def test_patient_cannot_see_unsent_prescription_draft(client, monkeypatch, register_doctor):
+    """A prescription row exists as soon as the doctor generates a draft, well before they
+    review and approve it - the patient must not be able to see it until it's actually sent.
+    """
+    doctor = register_doctor(email="draft-visibility@example.com")
+    monkeypatch.setattr("app.routers.consultations.draft_prescription", _fake_draft_prescription)
+    headers = auth_header(doctor)
+
+    patient = client.post(
+        "/patients",
+        json={"name": "Draft Visibility Patient", "age": 40, "email": "draft-visibility-patient@example.com"},
+        headers=headers,
+    )
+    consultation_id = client.post(
+        "/consultations", json={"patient_id": patient.json()["id"]}, headers=headers
+    ).json()["id"]
+    client.patch(
+        f"/consultations/{consultation_id}/transcript",
+        json={"transcript_text": "Routine consultation."},
+        headers=headers,
+    )
+    draft = client.post(f"/consultations/{consultation_id}/draft-rx", json={}, headers=headers)
+    assert draft.status_code == 200, draft.text
+    draft_prescription_id = draft.json()["id"]
+
+    patient_login = client.post(
+        "/auth/register/patient",
+        json={
+            "name": "Draft Visibility Patient",
+            "email": "draft-visibility-patient@example.com",
+            "password": "password123",
+        },
+    )
+    assert patient_login.status_code == 201, patient_login.text
+    patient_headers = auth_header(patient_login.json())
+
+    listed = client.get("/patients/me/prescriptions", headers=patient_headers)
+    assert listed.status_code == 200
+    assert listed.json() == []
+
+    detail = client.get(f"/patients/me/prescriptions/{draft_prescription_id}", headers=patient_headers)
+    assert detail.status_code == 404
+
+    audio = client.get(f"/patients/me/prescriptions/{draft_prescription_id}/audio", headers=patient_headers)
+    assert audio.status_code == 404
+
+    pdf = client.get(f"/patients/me/prescriptions/{draft_prescription_id}/pdf", headers=patient_headers)
+    assert pdf.status_code == 404
+
+    approve = client.post(f"/consultations/{consultation_id}/approve", json={}, headers=headers)
+    assert approve.status_code == 200, approve.text
+
+    listed_after_send = client.get("/patients/me/prescriptions", headers=patient_headers)
+    assert len(listed_after_send.json()) == 1
+    assert listed_after_send.json()[0]["id"] == draft_prescription_id
+
+
 def test_patient_history_shows_past_visits_across_doctors(client, monkeypatch, register_doctor):
     monkeypatch.setattr("app.routers.consultations.draft_prescription", _fake_draft_prescription)
     monkeypatch.setattr("app.routers.consultations.translate_to_hindi", _fake_translate_to_hindi)
